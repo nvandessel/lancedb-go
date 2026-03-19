@@ -3,16 +3,10 @@
 
 package internal
 
-/*
-#cgo CFLAGS: -I${SRCDIR}/../../include
-#include "lancedb.h"
-*/
-import "C"
-
 import (
+	"context"
 	"fmt"
-
-	"github.com/apache/arrow/go/v17/arrow"
+	"strings"
 
 	lancedb "github.com/lancedb/lancedb-go/pkg/contracts"
 )
@@ -22,6 +16,8 @@ type QueryBuilder struct {
 	table   *Table
 	filters []string
 	limit   int
+	offset  int
+	columns []string
 }
 
 var _ lancedb.IQueryBuilder = (*QueryBuilder)(nil)
@@ -31,6 +27,7 @@ var _ lancedb.IVectorQueryBuilder = (*VectorQueryBuilder)(nil)
 type VectorQueryBuilder struct {
 	QueryBuilder
 	vector []float32
+	column string
 }
 
 // Filter adds a filter condition to the query
@@ -45,15 +42,75 @@ func (q *QueryBuilder) Limit(limit int) lancedb.IQueryBuilder {
 	return q
 }
 
-// Execute executes the query and returns results
-func (q *QueryBuilder) Execute() ([]arrow.Record, error) {
-	if q.table.connection.closed {
-		return nil, fmt.Errorf("table is closed")
+// Columns sets the columns to return
+func (q *QueryBuilder) Columns(columns []string) lancedb.IQueryBuilder {
+	q.columns = columns
+	return q
+}
+
+// Offset sets the number of rows to skip
+func (q *QueryBuilder) Offset(offset int) lancedb.IQueryBuilder {
+	q.offset = offset
+	return q
+}
+
+// Execute executes the query and returns results.
+// Delegates to Table.Select() which holds the mutex and checks closed state.
+func (q *QueryBuilder) Execute() ([]map[string]interface{}, error) {
+	config := q.buildConfig()
+	return q.table.Select(context.Background(), config)
+}
+
+// ExecuteAsync executes the query asynchronously
+func (q *QueryBuilder) ExecuteAsync() (<-chan []map[string]interface{}, <-chan error) {
+	resultChan := make(chan []map[string]interface{}, 1)
+	errorChan := make(chan error, 1)
+
+	go func() {
+		defer close(resultChan)
+		defer close(errorChan)
+
+		results, err := q.Execute()
+		if err != nil {
+			errorChan <- err
+			return
+		}
+		resultChan <- results
+	}()
+
+	return resultChan, errorChan
+}
+
+// ApplyOptions applies query options to the builder
+func (q *QueryBuilder) ApplyOptions(options *lancedb.QueryOptions) lancedb.IQueryBuilder {
+	if options != nil {
+		if options.MaxResults > 0 {
+			q.Limit(options.MaxResults)
+		}
+	}
+	return q
+}
+
+// buildConfig converts the builder's accumulated state into a QueryConfig
+func (q *QueryBuilder) buildConfig() lancedb.QueryConfig {
+	config := lancedb.QueryConfig{}
+
+	if len(q.filters) > 0 {
+		config.Where = strings.Join(q.filters, " AND ")
+	}
+	if q.limit > 0 {
+		limit := q.limit
+		config.Limit = &limit
+	}
+	if q.offset > 0 {
+		offset := q.offset
+		config.Offset = &offset
+	}
+	if len(q.columns) > 0 {
+		config.Columns = q.columns
 	}
 
-	// This is a placeholder implementation
-	// In practice, we'd need to build and execute the query through the Rust layer
-	return nil, fmt.Errorf("query execution not yet implemented")
+	return config
 }
 
 // Filter adds a filter condition to the vector query
@@ -68,47 +125,47 @@ func (vq *VectorQueryBuilder) Limit(limit int) lancedb.IVectorQueryBuilder {
 	return vq
 }
 
-// DistanceType sets the distance metric for vector search
-func (vq *VectorQueryBuilder) DistanceType(_ lancedb.DistanceType) lancedb.IVectorQueryBuilder {
-	// Store distance type for later use
+// Columns sets the columns to return
+func (vq *VectorQueryBuilder) Columns(columns []string) lancedb.IVectorQueryBuilder {
+	vq.QueryBuilder.Columns(columns)
 	return vq
 }
 
-// Execute executes the vector search query and returns results
-func (vq *VectorQueryBuilder) Execute() ([]arrow.Record, error) {
-	if vq.table.connection.closed {
-		return nil, fmt.Errorf("table is closed")
-	}
-
-	// Placeholder implementation - vector query execution not yet fully implemented in C API
-	// This is a temporary workaround until the C API types are properly exported
-	return nil, fmt.Errorf("vector query execution not yet implemented - C API types need to be fixed")
+// Offset sets the number of rows to skip
+func (vq *VectorQueryBuilder) Offset(offset int) lancedb.IVectorQueryBuilder {
+	vq.QueryBuilder.Offset(offset)
+	return vq
 }
 
-// ExecuteAsync executes the query asynchronously
-func (q *QueryBuilder) ExecuteAsync() (<-chan []arrow.Record, <-chan error) {
-	resultChan := make(chan []arrow.Record, 1)
-	errorChan := make(chan error, 1)
+// DistanceType sets the distance metric for vector search
+// NOTE: Currently a no-op. The Rust FFI uses a default distance metric.
+// Wiring this through requires adding the field to QueryConfig.VectorSearch
+// and the Rust FFI layer, which is out of scope.
+func (vq *VectorQueryBuilder) DistanceType(_ lancedb.DistanceType) lancedb.IVectorQueryBuilder {
+	return vq
+}
 
-	go func() {
-		defer close(resultChan)
-		defer close(errorChan)
+// Execute executes the vector search query and returns results.
+// Delegates to Table.Select() which holds the mutex and checks closed state.
+func (vq *VectorQueryBuilder) Execute() ([]map[string]interface{}, error) {
+	k := vq.limit
+	if k <= 0 {
+		return nil, fmt.Errorf("vector search requires a positive K value: call .Limit(k) before .Execute()")
+	}
 
-		results, err := q.Execute()
-		if err != nil {
-			errorChan <- err
-			return
-		}
+	config := vq.buildConfig()
+	config.VectorSearch = &lancedb.VectorSearch{
+		Column: vq.column,
+		Vector: vq.vector,
+		K:      k,
+	}
 
-		resultChan <- results
-	}()
-
-	return resultChan, errorChan
+	return vq.table.Select(context.Background(), config)
 }
 
 // ExecuteAsync executes the vector query asynchronously
-func (vq *VectorQueryBuilder) ExecuteAsync() (<-chan []arrow.Record, <-chan error) {
-	resultChan := make(chan []arrow.Record, 1)
+func (vq *VectorQueryBuilder) ExecuteAsync() (<-chan []map[string]interface{}, <-chan error) {
+	resultChan := make(chan []map[string]interface{}, 1)
 	errorChan := make(chan error, 1)
 
 	go func() {
@@ -120,22 +177,10 @@ func (vq *VectorQueryBuilder) ExecuteAsync() (<-chan []arrow.Record, <-chan erro
 			errorChan <- err
 			return
 		}
-
 		resultChan <- results
 	}()
 
 	return resultChan, errorChan
-}
-
-// ApplyOptions applies query options to the builder
-func (q *QueryBuilder) ApplyOptions(options *lancedb.QueryOptions) lancedb.IQueryBuilder {
-	if options != nil {
-		if options.MaxResults > 0 {
-			q.Limit(options.MaxResults)
-		}
-		// Store other options for later use in query execution
-	}
-	return q
 }
 
 // ApplyOptions applies query options to the vector query builder
