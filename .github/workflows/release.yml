@@ -723,6 +723,28 @@ jobs:
           echo "📊 Binary file sizes:"
           du -h lib/*/
 
+      # Rename platform-specific binaries to avoid filename collisions in GitHub release
+      - name: Prepare release assets
+        run: |
+          mkdir -p release_assets
+          cp lancedb-go-native-binaries.tar.gz release_assets/
+          cp include/lancedb.h release_assets/
+
+          # Copy with platform-suffixed names
+          for dir in lib/*/; do
+            platform=$(basename "$dir")
+            for file in "$dir"*; do
+              [ -f "$file" ] || continue
+              base=$(basename "$file")
+              name="${base%.*}"
+              ext="${base##*.}"
+              cp "$file" "release_assets/${name}-${platform}.${ext}"
+            done
+          done
+
+          echo "Release assets:"
+          ls -la release_assets/
+
       # Create GitHub release with all binary files
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -730,19 +752,7 @@ jobs:
           tag_name: ${{ steps.get_version.outputs.version }}
           name: LanceDB Go SDK ${{ steps.get_version.outputs.version }}
           body_path: RELEASE_NOTES.md
-          files: |
-            lancedb-go-native-binaries.tar.gz
-            lib/darwin_amd64/liblancedb_go.a
-            lib/darwin_amd64/liblancedb_go.dylib
-            lib/darwin_arm64/liblancedb_go.a
-            lib/darwin_arm64/liblancedb_go.dylib
-            lib/linux_amd64/liblancedb_go.a
-            lib/linux_amd64/liblancedb_go.so
-            lib/linux_arm64/liblancedb_go.a
-            lib/linux_arm64/liblancedb_go.so
-            lib/windows_amd64/lancedb_go.lib
-            lib/windows_amd64/lancedb_go.dll
-            include/lancedb.h
+          files: release_assets/*
           draft: false
           prerelease: ${{ contains(steps.get_version.outputs.version, 'alpha') || contains(steps.get_version.outputs.version, 'beta') || contains(steps.get_version.outputs.version, 'rc') }}
         env:
