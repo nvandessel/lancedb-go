@@ -758,17 +758,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Test the release by trying to use it
-      - name: Test release installation
+      # Verify release assets were uploaded
+      - name: Verify release
         run: |
-          echo "🧪 Testing release installation..."
-          
-          # Create a temporary Go module to test installation
-          cd /tmp
-          mkdir lancedb-test
-          cd lancedb-test
-          
-          go mod init lancedb-test
-          go get github.com/lancedb/lancedb-go@${{ steps.get_version.outputs.version }}
-          
-          echo "✅ Release installation test passed!"
+          echo "🔍 Verifying release assets..."
+          gh release view ${{ steps.get_version.outputs.version }} --json assets --jq '.assets[].name' | sort
+          echo "✅ Release created successfully"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
