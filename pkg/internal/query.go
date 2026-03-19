@@ -5,6 +5,7 @@ package internal
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	lancedb "github.com/lancedb/lancedb-go/pkg/contracts"
@@ -26,6 +27,7 @@ var _ lancedb.IVectorQueryBuilder = (*VectorQueryBuilder)(nil)
 type VectorQueryBuilder struct {
 	QueryBuilder
 	vector []float32
+	column string
 }
 
 // Filter adds a filter condition to the query
@@ -146,11 +148,16 @@ func (vq *VectorQueryBuilder) DistanceType(_ lancedb.DistanceType) lancedb.IVect
 // Execute executes the vector search query and returns results.
 // Delegates to Table.Select() which holds the mutex and checks closed state.
 func (vq *VectorQueryBuilder) Execute() ([]map[string]interface{}, error) {
+	k := vq.limit
+	if k <= 0 {
+		return nil, fmt.Errorf("vector search requires a positive K value: call .Limit(k) before .Execute()")
+	}
+
 	config := vq.buildConfig()
 	config.VectorSearch = &lancedb.VectorSearch{
-		Column: "vector",
+		Column: vq.column,
 		Vector: vq.vector,
-		K:      vq.limit,
+		K:      k,
 	}
 
 	return vq.table.Select(context.Background(), config)
