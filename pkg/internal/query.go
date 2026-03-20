@@ -62,13 +62,15 @@ func (q *QueryBuilder) Execute() ([]map[string]interface{}, error) {
 	return q.table.Select(context.Background(), config)
 }
 
-// ExecuteAsync executes the query asynchronously
-func (q *QueryBuilder) ExecuteAsync() (<-chan []map[string]interface{}, <-chan error) {
+// executeAsync runs fn in a goroutine and routes its result or error to
+// the returned buffered channels. Exactly one channel receives a value;
+// both are then closed so callers can use range or channel-close as EOF.
+func executeAsync(fn func() ([]map[string]interface{}, error)) (<-chan []map[string]interface{}, <-chan error) {
 	resultChan := make(chan []map[string]interface{}, 1)
 	errorChan := make(chan error, 1)
 
 	go func() {
-		results, err := q.Execute()
+		results, err := fn()
 		if err != nil {
 			errorChan <- err
 		} else {
@@ -79,6 +81,11 @@ func (q *QueryBuilder) ExecuteAsync() (<-chan []map[string]interface{}, <-chan e
 	}()
 
 	return resultChan, errorChan
+}
+
+// ExecuteAsync executes the query asynchronously
+func (q *QueryBuilder) ExecuteAsync() (<-chan []map[string]interface{}, <-chan error) {
+	return executeAsync(q.Execute)
 }
 
 // ApplyOptions applies query options to the builder
@@ -173,21 +180,7 @@ func (vq *VectorQueryBuilder) Execute() ([]map[string]interface{}, error) {
 
 // ExecuteAsync executes the vector query asynchronously
 func (vq *VectorQueryBuilder) ExecuteAsync() (<-chan []map[string]interface{}, <-chan error) {
-	resultChan := make(chan []map[string]interface{}, 1)
-	errorChan := make(chan error, 1)
-
-	go func() {
-		results, err := vq.Execute()
-		if err != nil {
-			errorChan <- err
-		} else {
-			resultChan <- results
-		}
-		close(resultChan)
-		close(errorChan)
-	}()
-
-	return resultChan, errorChan
+	return executeAsync(vq.Execute)
 }
 
 // ApplyOptions applies query options to the vector query builder.

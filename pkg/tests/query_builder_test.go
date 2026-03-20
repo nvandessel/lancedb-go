@@ -399,6 +399,20 @@ func TestVectorQueryBuilder(t *testing.T) {
 		require.Error(t, err)
 	})
 
+	t.Run("ApplyOptions sets limit via MaxResults", func(t *testing.T) {
+		opts := &lancedb.QueryOptions{MaxResults: 2}
+		results, err := table.VectorQuery("embedding", queryVec).ApplyOptions(opts).Execute()
+		require.NoError(t, err)
+		assert.Len(t, results, 2)
+	})
+
+	t.Run("ApplyOptions without MaxResults requires explicit Limit", func(t *testing.T) {
+		opts := &lancedb.QueryOptions{}
+		_, err := table.VectorQuery("embedding", queryVec).ApplyOptions(opts).Execute()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "requires a positive K value")
+	})
+
 	t.Run("ExecuteAsync returns results on channel", func(t *testing.T) {
 		resultChan, errChan := table.VectorQuery("embedding", queryVec).Limit(3).ExecuteAsync()
 
