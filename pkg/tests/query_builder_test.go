@@ -307,6 +307,7 @@ func TestVectorQueryBuilder(t *testing.T) {
 	t.Run("Limit with Filter returns filtered results", func(t *testing.T) {
 		results, err := table.VectorQuery("embedding", queryVec).Limit(3).Filter("score > 85").Execute()
 		require.NoError(t, err)
+		require.NotEmpty(t, results)
 		for _, row := range results {
 			score, ok := row["score"].(float64)
 			require.True(t, ok)

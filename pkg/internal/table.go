@@ -236,6 +236,8 @@ func (t *Table) Query() contracts.IQueryBuilder {
 
 // VectorQuery creates a new vector query builder for this Table
 func (t *Table) VectorQuery(column string, vector []float32) contracts.IVectorQueryBuilder {
+	vectorCopy := make([]float32, len(vector))
+	copy(vectorCopy, vector)
 	return &VectorQueryBuilder{
 		QueryBuilder: QueryBuilder{
 			table:   t,
@@ -244,7 +246,7 @@ func (t *Table) VectorQuery(column string, vector []float32) contracts.IVectorQu
 			offset:  0,
 			columns: nil,
 		},
-		vector: vector,
+		vector: vectorCopy,
 		column: column,
 	}
 }
