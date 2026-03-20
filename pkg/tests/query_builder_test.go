@@ -267,17 +267,10 @@ func TestQueryBuilderExecuteAsync(t *testing.T) {
 		resultChan, errChan := table.Query().Filter("score > 90").ExecuteAsync()
 
 		select {
-		case results, ok := <-resultChan:
-			if ok {
-				assert.Len(t, results, 3)
-			} else {
-				err, _ := <-errChan
-				t.Fatalf("ExecuteAsync: resultChan closed without value; errChan=%v", err)
-			}
-		case err, ok := <-errChan:
-			if ok {
-				t.Fatalf("ExecuteAsync failed: %v", err)
-			}
+		case results := <-resultChan:
+			assert.Len(t, results, 3)
+		case err := <-errChan:
+			t.Fatalf("ExecuteAsync failed: %v", err)
 		case <-time.After(5 * time.Second):
 			t.Fatal("ExecuteAsync timed out")
 		}
@@ -291,15 +284,9 @@ func TestQueryBuilderExecuteAsync(t *testing.T) {
 		resultChan, errChan := closedTable.Query().ExecuteAsync()
 
 		select {
-		case _, ok := <-resultChan:
-			if ok {
-				t.Fatal("Expected error, got results")
-			}
-			err, ok := <-errChan
-			require.True(t, ok, "expected error on errChan after resultChan closed")
-			assert.Error(t, err)
-		case err, ok := <-errChan:
-			require.True(t, ok, "expected actual error, not channel close")
+		case results := <-resultChan:
+			t.Fatalf("Expected error, got results: %v", results)
+		case err := <-errChan:
 			assert.Error(t, err)
 		case <-time.After(5 * time.Second):
 			t.Fatal("ExecuteAsync timed out waiting for error")
@@ -381,17 +368,10 @@ func TestVectorQueryBuilder(t *testing.T) {
 		resultChan, errChan := table.VectorQuery("embedding", queryVec).Limit(3).ExecuteAsync()
 
 		select {
-		case results, ok := <-resultChan:
-			if ok {
-				assert.Len(t, results, 3)
-			} else {
-				err, _ := <-errChan
-				t.Fatalf("ExecuteAsync: resultChan closed without value; errChan=%v", err)
-			}
-		case err, ok := <-errChan:
-			if ok {
-				t.Fatalf("ExecuteAsync failed: %v", err)
-			}
+		case results := <-resultChan:
+			assert.Len(t, results, 3)
+		case err := <-errChan:
+			t.Fatalf("ExecuteAsync failed: %v", err)
 		case <-time.After(5 * time.Second):
 			t.Fatal("ExecuteAsync timed out")
 		}
@@ -405,15 +385,9 @@ func TestVectorQueryBuilder(t *testing.T) {
 		resultChan, errChan := closedTable.VectorQuery("embedding", queryVec).Limit(3).ExecuteAsync()
 
 		select {
-		case _, ok := <-resultChan:
-			if ok {
-				t.Fatal("Expected error, got results")
-			}
-			err, ok := <-errChan
-			require.True(t, ok, "expected error on errChan after resultChan closed")
-			assert.Error(t, err)
-		case err, ok := <-errChan:
-			require.True(t, ok, "expected actual error, not channel close")
+		case results := <-resultChan:
+			t.Fatalf("Expected error, got results: %v", results)
+		case err := <-errChan:
 			assert.Error(t, err)
 		case <-time.After(5 * time.Second):
 			t.Fatal("ExecuteAsync timed out waiting for error")
