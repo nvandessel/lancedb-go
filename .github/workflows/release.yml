@@ -738,7 +738,7 @@ jobs:
           
           - **macOS**: Intel (amd64) and Apple Silicon (arm64)
           - **Linux**: Intel/AMD (amd64) and ARM (arm64)  
-          - **Windows**: Intel/AMD (amd64)
+          - **Windows**: Intel/AMD (amd64) - MSVC and GNU/MinGW variants
           
           ## Files Included
           
@@ -747,7 +747,8 @@ jobs:
           - `lib/darwin_arm64/` - macOS Apple Silicon binaries  
           - `lib/linux_amd64/` - Linux AMD64 binaries
           - `lib/linux_arm64/` - Linux ARM64 binaries
-          - `lib/windows_amd64/` - Windows AMD64 binaries
+          - `lib/windows_amd64/` - Windows AMD64 MSVC binaries
+          - `lib/windows-gnu_amd64/` - Windows AMD64 GNU/MinGW binaries (for Go CGO users)
           
           ## Usage
           

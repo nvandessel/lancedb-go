@@ -32,6 +32,7 @@ case "$PLATFORM" in
     "linux") PLATFORM="linux" ;;
     "windows"|"win32"|"win64") PLATFORM="windows" ;;
     "windows-gnu") PLATFORM="windows-gnu" ;;
+    "windows-msvc") PLATFORM="windows-msvc" ;;
     *) echo "Unsupported platform: $PLATFORM" >&2; exit 1 ;;
 esac
 
@@ -87,9 +88,13 @@ case "$PLATFORM" in
             cp "$RUST_DIR/target/$RUST_TARGET/release/liblancedb_go.so" "$TARGET_DIR/"
         fi
         ;;
-    "windows")
-        # GNU target produces liblancedb_go.a (not .lib)
-        cp "$RUST_DIR/target/$RUST_TARGET/release/liblancedb_go.a" "$TARGET_DIR/"
+    "windows"|"windows-msvc")
+        # MSVC target produces lancedb_go.lib
+        if [ -f "$RUST_DIR/target/$RUST_TARGET/release/lancedb_go.lib" ]; then
+            cp "$RUST_DIR/target/$RUST_TARGET/release/lancedb_go.lib" "$TARGET_DIR/"
+        else
+            echo "❌ No static library found for MSVC target" >&2; exit 1
+        fi
         if [ -f "$RUST_DIR/target/$RUST_TARGET/release/lancedb_go.dll" ]; then
             cp "$RUST_DIR/target/$RUST_TARGET/release/lancedb_go.dll" "$TARGET_DIR/"
         fi
