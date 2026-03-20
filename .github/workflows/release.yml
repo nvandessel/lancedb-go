@@ -424,6 +424,7 @@ jobs:
         env:
           RUST_TARGET: ${{ matrix.rust_target }}
           PROTOC: ${{ env.PROTOC }}
+          CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER: x86_64-w64-mingw32-gcc
 
       - name: Generate C header
         if: matrix.platform == 'darwin' && matrix.arch == 'amd64'  # Generate header only once
@@ -708,8 +709,10 @@ jobs:
           for platform in $expected_platforms; do
             if [ ! -d "lib/$platform" ]; then
               echo "❌ Missing binaries for platform: $platform"
+              exit 1
+            else
+              echo "✅ Found binaries for platform: $platform"
             fi
-            echo "✅ Found binaries for platform: $platform"
           done
 
       # Create archive with all binaries
@@ -767,7 +770,7 @@ jobs:
             VERSION="${{ github.event.inputs.version }}"
           fi
           # Validate version format
-          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9._-]+)?$ ]]; then
             echo "Invalid version format: $VERSION"
             exit 1
           fi

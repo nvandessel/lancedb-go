@@ -53,8 +53,9 @@ case "$PLATFORM-$ARCH" in
     "darwin-arm64") RUST_TARGET="aarch64-apple-darwin" ;;
     "linux-amd64") RUST_TARGET="x86_64-unknown-linux-gnu" ;;
     "linux-arm64") RUST_TARGET="aarch64-unknown-linux-gnu" ;;
-    "windows-amd64") RUST_TARGET="x86_64-pc-windows-gnu" ;;
+    "windows-amd64") RUST_TARGET="x86_64-pc-windows-msvc" ;;
     "windows-gnu-amd64") RUST_TARGET="x86_64-pc-windows-gnu" ;;
+    "windows-msvc-amd64") RUST_TARGET="x86_64-pc-windows-msvc" ;;
     *) echo "Unsupported target: $PLATFORM-$ARCH" >&2; exit 1 ;;
 esac
 
