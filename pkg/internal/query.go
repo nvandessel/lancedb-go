@@ -190,7 +190,9 @@ func (vq *VectorQueryBuilder) ExecuteAsync() (<-chan []map[string]interface{}, <
 	return resultChan, errorChan
 }
 
-// ApplyOptions applies query options to the vector query builder
+// ApplyOptions applies query options to the vector query builder.
+// Only MaxResults is honoured; UseFullPrecision and BypassVectorIndex are
+// not yet wired through the Rust FFI query path and are silently ignored.
 func (vq *VectorQueryBuilder) ApplyOptions(options *lancedb.QueryOptions) lancedb.IVectorQueryBuilder {
 	if options != nil && options.MaxResults > 0 {
 		// Call vq.Limit() (not QueryBuilder.Limit) so limitSet is updated.
