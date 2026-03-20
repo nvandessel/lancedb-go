@@ -334,8 +334,7 @@ func TestVectorQueryBuilder(t *testing.T) {
 		// actually reduces results rather than trivially matching all rows.
 		results, err := table.VectorQuery("embedding", queryVec).Limit(5).Filter("score > 93").Execute()
 		require.NoError(t, err)
-		require.NotEmpty(t, results)
-		assert.LessOrEqual(t, len(results), 2)
+		assert.Len(t, results, 2)
 		for _, row := range results {
 			score, ok := row["score"].(float64)
 			require.True(t, ok)
@@ -354,6 +353,7 @@ func TestVectorQueryBuilder(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, results)
 		for _, row := range results {
+			assert.Len(t, row, 2, "expected exactly 2 columns: id and name")
 			assert.Contains(t, row, "id")
 			assert.Contains(t, row, "name")
 			assert.NotContains(t, row, "score")
