@@ -175,13 +175,10 @@ jobs:
     name: Test Suite
     needs: build-artifacts
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
         go-version: ['1.21']
-#        exclude:
-#          # Optimize: only test latest Go on macOS
-#          - os: macos-latest
-#            go-version: '1.22'
 #          - os: macos-latest
 #            go-version: '1.21'
     runs-on: ${{ matrix.os }}
@@ -274,6 +271,7 @@ jobs:
           case "$UNAME_S" in
             Darwin)
               PLATFORM=darwin
+              export MACOSX_DEPLOYMENT_TARGET=13.0
               FRAMEWORK_FLAGS="-framework Security -framework CoreFoundation"
               CGO_LDFLAGS="$(pwd)/lib/darwin_${ARCH}/liblancedb_go.a $FRAMEWORK_FLAGS"
               ;;
@@ -322,6 +320,7 @@ jobs:
           case "$UNAME_S" in
             Darwin)
               PLATFORM=darwin
+              export MACOSX_DEPLOYMENT_TARGET=13.0
               FRAMEWORK_FLAGS="-framework Security -framework CoreFoundation"
               CGO_LDFLAGS="$(pwd)/lib/darwin_${ARCH}/liblancedb_go.a $FRAMEWORK_FLAGS"
               ;;
