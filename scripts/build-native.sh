@@ -54,7 +54,7 @@ case "$PLATFORM-$ARCH" in
     "darwin-arm64") RUST_TARGET="aarch64-apple-darwin" ;;
     "linux-amd64") RUST_TARGET="x86_64-unknown-linux-gnu" ;;
     "linux-arm64") RUST_TARGET="aarch64-unknown-linux-gnu" ;;
-    "windows-amd64") RUST_TARGET="x86_64-pc-windows-msvc" ;;
+    "windows-amd64") RUST_TARGET="x86_64-pc-windows-gnu" ;;
     "windows-gnu-amd64") RUST_TARGET="x86_64-pc-windows-gnu" ;;
     "windows-msvc-amd64") RUST_TARGET="x86_64-pc-windows-msvc" ;;
     *) echo "Unsupported target: $PLATFORM-$ARCH" >&2; exit 1 ;;
@@ -88,7 +88,14 @@ case "$PLATFORM" in
             cp "$RUST_DIR/target/$RUST_TARGET/release/liblancedb_go.so" "$TARGET_DIR/"
         fi
         ;;
-    "windows"|"windows-msvc")
+    "windows")
+        # GNU target (default for CGO compatibility) produces liblancedb_go.a
+        cp "$RUST_DIR/target/$RUST_TARGET/release/liblancedb_go.a" "$TARGET_DIR/"
+        if [ -f "$RUST_DIR/target/$RUST_TARGET/release/lancedb_go.dll" ]; then
+            cp "$RUST_DIR/target/$RUST_TARGET/release/lancedb_go.dll" "$TARGET_DIR/"
+        fi
+        ;;
+    "windows-msvc")
         # MSVC target produces lancedb_go.lib
         if [ -f "$RUST_DIR/target/$RUST_TARGET/release/lancedb_go.lib" ]; then
             cp "$RUST_DIR/target/$RUST_TARGET/release/lancedb_go.lib" "$TARGET_DIR/"
