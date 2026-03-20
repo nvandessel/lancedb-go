@@ -348,6 +348,18 @@ func TestVectorQueryBuilder(t *testing.T) {
 		assert.Contains(t, err.Error(), "vector search requires a positive K value")
 	})
 
+	t.Run("Zero Limit returns error", func(t *testing.T) {
+		_, err := table.VectorQuery("embedding", queryVec).Limit(0).Execute()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "K must be a positive integer")
+	})
+
+	t.Run("Negative Limit returns error", func(t *testing.T) {
+		_, err := table.VectorQuery("embedding", queryVec).Limit(-5).Execute()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "K must be a positive integer")
+	})
+
 	t.Run("Columns restricts returned fields", func(t *testing.T) {
 		results, err := table.VectorQuery("embedding", queryVec).Limit(3).Columns([]string{"id", "name"}).Execute()
 		require.NoError(t, err)
