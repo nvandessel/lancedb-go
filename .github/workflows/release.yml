@@ -412,6 +412,16 @@ jobs:
         run: |
           echo "🔨 Building for ${{ matrix.platform }}-${{ matrix.arch }} (GNU/MinGW) on Windows..."
 
+          # Ensure MinGW gcc is available
+          export PATH="/c/mingw64/bin:$PATH"
+          if ! command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then
+            echo "⚠️ x86_64-w64-mingw32-gcc not found, falling back to gcc"
+            export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=gcc
+          else
+            export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc
+          fi
+          echo "✅ Linker: $CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER"
+
           # Ensure protoc is available
           if ! command -v protoc >/dev/null 2>&1; then
             echo "❌ protoc not found in PATH"
@@ -424,7 +434,6 @@ jobs:
         env:
           RUST_TARGET: ${{ matrix.rust_target }}
           PROTOC: ${{ env.PROTOC }}
-          CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER: x86_64-w64-mingw32-gcc
 
       - name: Generate C header
         if: matrix.platform == 'darwin' && matrix.arch == 'amd64'  # Generate header only once
