@@ -151,6 +151,10 @@ func (vq *VectorQueryBuilder) Execute() ([]map[string]interface{}, error) {
 	}
 
 	config := vq.buildConfig()
+	// Clear config.Limit: for vector search, K is the authoritative result count.
+	// Sending both to the Rust FFI could cause unexpected behaviour if it
+	// processes them independently.
+	config.Limit = nil
 	config.VectorSearch = &lancedb.VectorSearch{
 		Column: vq.column,
 		Vector: vq.vector,
