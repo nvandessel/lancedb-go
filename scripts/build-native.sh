@@ -111,7 +111,11 @@ case "$PLATFORM" in
         fi
         ;;
     "windows-gnu")
-        cp "$RUST_DIR/target/$RUST_TARGET/release/liblancedb_go.a" "$TARGET_DIR/"
+        if [ -f "$RUST_DIR/target/$RUST_TARGET/release/liblancedb_go.a" ]; then
+            cp "$RUST_DIR/target/$RUST_TARGET/release/liblancedb_go.a" "$TARGET_DIR/"
+        else
+            echo "❌ No static library found for GNU target" >&2; exit 1
+        fi
         if [ -f "$RUST_DIR/target/$RUST_TARGET/release/lancedb_go.dll" ]; then
             cp "$RUST_DIR/target/$RUST_TARGET/release/lancedb_go.dll" "$TARGET_DIR/"
         fi
