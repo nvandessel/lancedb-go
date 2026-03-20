@@ -62,9 +62,10 @@ rustup target add "$RUST_TARGET"
 echo "🔨 Building Rust library..."
 cd "$RUST_DIR"
 
-# Set macOS deployment target for backward compatibility
+# Set macOS deployment target to match SDK version
 if [[ "$PLATFORM" == "darwin" ]]; then
-    export MACOSX_DEPLOYMENT_TARGET="13.0"
+    SDK_VERSION=$(xcrun --show-sdk-version 2>/dev/null || echo "15.0")
+    export MACOSX_DEPLOYMENT_TARGET="$SDK_VERSION"
     echo "   MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET"
 fi
 
