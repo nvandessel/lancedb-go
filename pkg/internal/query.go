@@ -26,8 +26,9 @@ var _ lancedb.IVectorQueryBuilder = (*VectorQueryBuilder)(nil)
 // VectorQueryBuilder extends QueryBuilder for vector similarity searches
 type VectorQueryBuilder struct {
 	QueryBuilder
-	vector []float32
-	column string
+	vector   []float32
+	column   string
+	limitSet bool // tracks whether Limit() was explicitly called
 }
 
 // Filter adds a filter condition to the query
@@ -121,6 +122,7 @@ func (vq *VectorQueryBuilder) Filter(condition string) lancedb.IVectorQueryBuild
 // Limit sets the maximum number of results to return
 func (vq *VectorQueryBuilder) Limit(limit int) lancedb.IVectorQueryBuilder {
 	vq.QueryBuilder.Limit(limit)
+	vq.limitSet = true
 	return vq
 }
 
@@ -145,10 +147,10 @@ func (vq *VectorQueryBuilder) Execute() ([]map[string]interface{}, error) {
 	if vq.column == "" {
 		return nil, fmt.Errorf("vector search requires a non-empty column name")
 	}
-	k := vq.limit
-	if k == -1 {
+	if !vq.limitSet {
 		return nil, fmt.Errorf("vector search requires a positive K value: call .Limit(k) before .Execute()")
 	}
+	k := vq.limit
 	if k <= 0 {
 		return nil, fmt.Errorf("vector search K must be a positive integer, got %d", k)
 	}

@@ -242,8 +242,6 @@ func (t *Table) VectorQuery(column string, vector []float32) contracts.IVectorQu
 		QueryBuilder: QueryBuilder{
 			table:   t,
 			filters: make([]string, 0),
-			limit:   -1,
-			offset:  0,
 			columns: nil,
 		},
 		vector: vectorCopy,
