@@ -11,4 +11,4 @@
 - **BREAKING**: `DistanceType` type and constants (`DistanceTypeL2`, `DistanceTypeCosine`, `DistanceTypeDot`, `DistanceTypeHamming`) removed from `pkg/contracts`. Implementors of `IVectorQueryBuilder` and callers of `.DistanceType(...)` must remove those call sites.
 
 ### Fixed
-- `ExecuteAsync` on both `QueryBuilder` and `VectorQueryBuilder` now only closes the channel that receives a value, eliminating a race in `select` statements when both channels became ready simultaneously (closed empty channel vs. channel with value).
+- `ExecuteAsync` on both `QueryBuilder` and `VectorQueryBuilder` now always closes both returned channels after exactly one receives a value, satisfying Go's channel-close convention. Callers using `select` should use the two-value receive form (`value, ok := <-ch`) to distinguish a real value (`ok=true`) from a closed-empty channel (`ok=false`); on the closed-empty branch the other channel holds the actual result or error.
