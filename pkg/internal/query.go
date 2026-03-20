@@ -192,6 +192,9 @@ func (vq *VectorQueryBuilder) ExecuteAsync() (<-chan []map[string]interface{}, <
 
 // ApplyOptions applies query options to the vector query builder
 func (vq *VectorQueryBuilder) ApplyOptions(options *lancedb.QueryOptions) lancedb.IVectorQueryBuilder {
-	vq.QueryBuilder.ApplyOptions(options)
+	if options != nil && options.MaxResults > 0 {
+		// Call vq.Limit() (not QueryBuilder.Limit) so limitSet is updated.
+		vq.Limit(options.MaxResults)
+	}
 	return vq
 }
