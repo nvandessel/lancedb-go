@@ -330,13 +330,16 @@ func TestVectorQueryBuilder(t *testing.T) {
 	})
 
 	t.Run("Limit with Filter returns filtered results", func(t *testing.T) {
-		results, err := table.VectorQuery("embedding", queryVec).Limit(3).Filter("score > 85").Execute()
+		// score > 93 matches only Alice(95.5) and Eve(94.1), proving the filter
+		// actually reduces results rather than trivially matching all rows.
+		results, err := table.VectorQuery("embedding", queryVec).Limit(5).Filter("score > 93").Execute()
 		require.NoError(t, err)
 		require.NotEmpty(t, results)
+		assert.LessOrEqual(t, len(results), 2)
 		for _, row := range results {
 			score, ok := row["score"].(float64)
 			require.True(t, ok)
-			assert.Greater(t, score, 85.0)
+			assert.Greater(t, score, 93.0)
 		}
 	})
 
@@ -354,6 +357,7 @@ func TestVectorQueryBuilder(t *testing.T) {
 			assert.Contains(t, row, "id")
 			assert.Contains(t, row, "name")
 			assert.NotContains(t, row, "score")
+			assert.NotContains(t, row, "embedding")
 		}
 	})
 
