@@ -234,6 +234,21 @@ func (t *Table) Query() contracts.IQueryBuilder {
 	}
 }
 
+// VectorQuery creates a new vector query builder for this Table
+func (t *Table) VectorQuery(column string, vector []float32) contracts.IVectorQueryBuilder {
+	return &VectorQueryBuilder{
+		QueryBuilder: QueryBuilder{
+			table:   t,
+			filters: make([]string, 0),
+			limit:   -1,
+			offset:  0,
+			columns: nil,
+		},
+		vector: vector,
+		column: column,
+	}
+}
+
 // Count returns the number of rows in the Table
 func (t *Table) Count(_ context.Context) (int64, error) {
 	t.mu.RLock()

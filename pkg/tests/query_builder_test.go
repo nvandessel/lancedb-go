@@ -18,6 +18,98 @@ import (
 	"github.com/lancedb/lancedb-go/pkg/lancedb"
 )
 
+// setupVectorQueryTestTable creates a test table with a vector embedding column for VectorQuery tests.
+func setupVectorQueryTestTable(t *testing.T) (*internal.Table, func()) {
+	t.Helper()
+
+	tempDir, err := os.MkdirTemp("", "lancedb_test_vector_query_")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+
+	conn, err := lancedb.Connect(context.Background(), tempDir, nil)
+	if err != nil {
+		os.RemoveAll(tempDir)
+		t.Fatalf("Failed to connect: %v", err)
+	}
+
+	fields := []arrow.Field{
+		{Name: "id", Type: arrow.PrimitiveTypes.Int32, Nullable: false},
+		{Name: "name", Type: arrow.BinaryTypes.String, Nullable: false},
+		{Name: "score", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+		{Name: "embedding", Type: arrow.FixedSizeListOf(128, arrow.PrimitiveTypes.Float32), Nullable: false},
+	}
+	arrowSchema := arrow.NewSchema(fields, nil)
+	schema, err := internal.NewSchema(arrowSchema)
+	if err != nil {
+		conn.Close()
+		os.RemoveAll(tempDir)
+		t.Fatalf("Failed to create schema: %v", err)
+	}
+
+	table, err := conn.CreateTable(context.Background(), "test_vq", schema)
+	if err != nil {
+		conn.Close()
+		os.RemoveAll(tempDir)
+		t.Fatalf("Failed to create table: %v", err)
+	}
+
+	pool := memory.NewGoAllocator()
+	numRecords := 5
+
+	idBuilder := array.NewInt32Builder(pool)
+	idBuilder.AppendValues([]int32{1, 2, 3, 4, 5}, nil)
+	idArray := idBuilder.NewArray()
+	defer idArray.Release()
+
+	nameBuilder := array.NewStringBuilder(pool)
+	nameBuilder.AppendValues([]string{"Alice", "Bob", "Charlie", "Diana", "Eve"}, nil)
+	nameArray := nameBuilder.NewArray()
+	defer nameArray.Release()
+
+	scoreBuilder := array.NewFloat64Builder(pool)
+	scoreBuilder.AppendValues([]float64{95.5, 87.2, 92.8, 88.9, 94.1}, nil)
+	scoreArray := scoreBuilder.NewArray()
+	defer scoreArray.Release()
+
+	embeddingValues := make([]float32, numRecords*128)
+	for i := 0; i < numRecords; i++ {
+		for j := 0; j < 128; j++ {
+			embeddingValues[i*128+j] = float32(i)*0.1 + float32(j)*0.001
+		}
+	}
+	embeddingFloat32Builder := array.NewFloat32Builder(pool)
+	embeddingFloat32Builder.AppendValues(embeddingValues, nil)
+	embeddingFloat32Array := embeddingFloat32Builder.NewArray()
+	defer embeddingFloat32Array.Release()
+
+	embeddingListType := arrow.FixedSizeListOf(128, arrow.PrimitiveTypes.Float32)
+	embeddingArray := array.NewFixedSizeListData(
+		array.NewData(embeddingListType, numRecords, []*memory.Buffer{nil}, []arrow.ArrayData{embeddingFloat32Array.Data()}, 0, 0),
+	)
+	defer embeddingArray.Release()
+
+	columns := []arrow.Array{idArray, nameArray, scoreArray, embeddingArray}
+	record := array.NewRecord(arrowSchema, columns, int64(numRecords))
+	defer record.Release()
+
+	err = table.Add(context.Background(), record, nil)
+	if err != nil {
+		table.Close()
+		conn.Close()
+		os.RemoveAll(tempDir)
+		t.Fatalf("Failed to add data: %v", err)
+	}
+
+	cleanup := func() {
+		table.Close()
+		conn.Close()
+		os.RemoveAll(tempDir)
+	}
+
+	return table.(*internal.Table), cleanup
+}
+
 // setupQueryTestTable creates a test table with sample data for query builder tests.
 // Returns the table and a cleanup function.
 func setupQueryTestTable(t *testing.T) (*internal.Table, func()) {
@@ -193,6 +285,49 @@ func TestQueryBuilderExecuteAsync(t *testing.T) {
 			t.Fatal("Expected error, got results")
 		case err := <-errChan:
 			assert.Error(t, err)
+		}
+	})
+}
+
+func TestVectorQueryBuilder(t *testing.T) {
+	table, cleanup := setupVectorQueryTestTable(t)
+	defer cleanup()
+
+	queryVec := make([]float32, 128)
+	for j := 0; j < 128; j++ {
+		queryVec[j] = float32(j) * 0.001
+	}
+
+	t.Run("Limit returns results", func(t *testing.T) {
+		results, err := table.VectorQuery("embedding", queryVec).Limit(3).Execute()
+		require.NoError(t, err)
+		assert.Len(t, results, 3)
+	})
+
+	t.Run("Limit with Filter returns filtered results", func(t *testing.T) {
+		results, err := table.VectorQuery("embedding", queryVec).Limit(3).Filter("score > 85").Execute()
+		require.NoError(t, err)
+		for _, row := range results {
+			score, ok := row["score"].(float64)
+			require.True(t, ok)
+			assert.Greater(t, score, 85.0)
+		}
+	})
+
+	t.Run("Without Limit returns error", func(t *testing.T) {
+		_, err := table.VectorQuery("embedding", queryVec).Execute()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "vector search requires a positive K value")
+	})
+
+	t.Run("Columns restricts returned fields", func(t *testing.T) {
+		results, err := table.VectorQuery("embedding", queryVec).Limit(3).Columns([]string{"id", "name"}).Execute()
+		require.NoError(t, err)
+		require.NotEmpty(t, results)
+		for _, row := range results {
+			assert.Contains(t, row, "id")
+			assert.Contains(t, row, "name")
+			assert.NotContains(t, row, "score")
 		}
 	})
 }
