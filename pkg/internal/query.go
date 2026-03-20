@@ -64,20 +64,24 @@ func (q *QueryBuilder) Execute() ([]map[string]interface{}, error) {
 
 // executeAsync runs fn in a goroutine and routes its result or error to
 // the returned buffered channels. Exactly one channel receives a value;
-// both are then closed so callers can use range or channel-close as EOF.
+// both are always closed (via defer) so callers can safely use the
+// two-value receive form or range. Callers should check the ok flag to
+// distinguish a real value (ok=true) from a closed-empty channel (ok=false)
+// that may appear when the scheduler picks the other channel first.
 func executeAsync(fn func() ([]map[string]interface{}, error)) (<-chan []map[string]interface{}, <-chan error) {
 	resultChan := make(chan []map[string]interface{}, 1)
 	errorChan := make(chan error, 1)
 
 	go func() {
+		defer close(resultChan)
+		defer close(errorChan)
+
 		results, err := fn()
 		if err != nil {
 			errorChan <- err
 		} else {
 			resultChan <- results
 		}
-		close(resultChan)
-		close(errorChan)
 	}()
 
 	return resultChan, errorChan
