@@ -26,8 +26,9 @@ var _ lancedb.IVectorQueryBuilder = (*VectorQueryBuilder)(nil)
 // VectorQueryBuilder extends QueryBuilder for vector similarity searches
 type VectorQueryBuilder struct {
 	QueryBuilder
-	vector []float32
-	column string
+	vector   []float32
+	column   string
+	limitSet bool // tracks whether Limit() was explicitly called
 }
 
 // Filter adds a filter condition to the query
@@ -61,8 +62,13 @@ func (q *QueryBuilder) Execute() ([]map[string]interface{}, error) {
 	return q.table.Select(context.Background(), config)
 }
 
-// ExecuteAsync executes the query asynchronously
-func (q *QueryBuilder) ExecuteAsync() (<-chan []map[string]interface{}, <-chan error) {
+// executeAsync runs fn in a goroutine and routes its result or error to
+// the returned buffered channels. Exactly one channel receives a value;
+// both are always closed (via defer) so callers can safely use the
+// two-value receive form. Callers should check the ok flag to
+// distinguish a real value (ok=true) from a closed-empty channel (ok=false)
+// that may appear when the scheduler picks the other channel first.
+func executeAsync(fn func() ([]map[string]interface{}, error)) (<-chan []map[string]interface{}, <-chan error) {
 	resultChan := make(chan []map[string]interface{}, 1)
 	errorChan := make(chan error, 1)
 
@@ -70,15 +76,20 @@ func (q *QueryBuilder) ExecuteAsync() (<-chan []map[string]interface{}, <-chan e
 		defer close(resultChan)
 		defer close(errorChan)
 
-		results, err := q.Execute()
+		results, err := fn()
 		if err != nil {
 			errorChan <- err
-			return
+		} else {
+			resultChan <- results
 		}
-		resultChan <- results
 	}()
 
 	return resultChan, errorChan
+}
+
+// ExecuteAsync executes the query asynchronously
+func (q *QueryBuilder) ExecuteAsync() (<-chan []map[string]interface{}, <-chan error) {
+	return executeAsync(q.Execute)
 }
 
 // ApplyOptions applies query options to the builder
@@ -122,6 +133,7 @@ func (vq *VectorQueryBuilder) Filter(condition string) lancedb.IVectorQueryBuild
 // Limit sets the maximum number of results to return
 func (vq *VectorQueryBuilder) Limit(limit int) lancedb.IVectorQueryBuilder {
 	vq.QueryBuilder.Limit(limit)
+	vq.limitSet = true
 	return vq
 }
 
@@ -131,60 +143,50 @@ func (vq *VectorQueryBuilder) Columns(columns []string) lancedb.IVectorQueryBuil
 	return vq
 }
 
-// Offset sets the number of rows to skip
-func (vq *VectorQueryBuilder) Offset(offset int) lancedb.IVectorQueryBuilder {
-	vq.QueryBuilder.Offset(offset)
-	return vq
-}
-
-// DistanceType sets the distance metric for vector search
-// NOTE: Currently a no-op. The Rust FFI uses a default distance metric.
-// Wiring this through requires adding the field to QueryConfig.VectorSearch
-// and the Rust FFI layer, which is out of scope.
-func (vq *VectorQueryBuilder) DistanceType(_ lancedb.DistanceType) lancedb.IVectorQueryBuilder {
-	return vq
-}
-
 // Execute executes the vector search query and returns results.
 // Delegates to Table.Select() which holds the mutex and checks closed state.
 func (vq *VectorQueryBuilder) Execute() ([]map[string]interface{}, error) {
+	if len(vq.vector) == 0 {
+		return nil, fmt.Errorf("vector search requires a non-empty query vector")
+	}
+	if vq.column == "" {
+		return nil, fmt.Errorf("vector search requires a non-empty column name")
+	}
+
 	k := vq.limit
-	if k <= 0 {
+	if !vq.limitSet {
 		return nil, fmt.Errorf("vector search requires a positive K value: call .Limit(k) before .Execute()")
+	}
+	if k <= 0 {
+		return nil, fmt.Errorf("K must be a positive integer, got %d", k)
+	}
+
+	if vq.offset != 0 {
+		return nil, fmt.Errorf("VectorQueryBuilder does not support Offset(); use QueryBuilder for offset-based pagination")
 	}
 
 	config := vq.buildConfig()
+	config.Limit = nil // K is authoritative for vector search
 	config.VectorSearch = &lancedb.VectorSearch{
 		Column: vq.column,
 		Vector: vq.vector,
 		K:      k,
 	}
-
 	return vq.table.Select(context.Background(), config)
 }
 
 // ExecuteAsync executes the vector query asynchronously
 func (vq *VectorQueryBuilder) ExecuteAsync() (<-chan []map[string]interface{}, <-chan error) {
-	resultChan := make(chan []map[string]interface{}, 1)
-	errorChan := make(chan error, 1)
-
-	go func() {
-		defer close(resultChan)
-		defer close(errorChan)
-
-		results, err := vq.Execute()
-		if err != nil {
-			errorChan <- err
-			return
-		}
-		resultChan <- results
-	}()
-
-	return resultChan, errorChan
+	return executeAsync(vq.Execute)
 }
 
-// ApplyOptions applies query options to the vector query builder
+// ApplyOptions applies query options to the vector query builder.
+// Only MaxResults is honoured; UseFullPrecision and BypassVectorIndex are
+// not yet wired through the Rust FFI query path and are silently ignored.
 func (vq *VectorQueryBuilder) ApplyOptions(options *lancedb.QueryOptions) lancedb.IVectorQueryBuilder {
-	vq.QueryBuilder.ApplyOptions(options)
+	if options != nil && options.MaxResults > 0 {
+		// Call vq.Limit() (not QueryBuilder.Limit) so limitSet is updated.
+		vq.Limit(options.MaxResults)
+	}
 	return vq
 }
