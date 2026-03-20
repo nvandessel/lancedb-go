@@ -67,15 +67,14 @@ func (q *QueryBuilder) ExecuteAsync() (<-chan []map[string]interface{}, <-chan e
 	errorChan := make(chan error, 1)
 
 	go func() {
-		defer close(resultChan)
-		defer close(errorChan)
-
 		results, err := q.Execute()
 		if err != nil {
 			errorChan <- err
+			close(errorChan)
 			return
 		}
 		resultChan <- results
+		close(resultChan)
 	}()
 
 	return resultChan, errorChan
@@ -167,15 +166,14 @@ func (vq *VectorQueryBuilder) ExecuteAsync() (<-chan []map[string]interface{}, <
 	errorChan := make(chan error, 1)
 
 	go func() {
-		defer close(resultChan)
-		defer close(errorChan)
-
 		results, err := vq.Execute()
 		if err != nil {
 			errorChan <- err
+			close(errorChan)
 			return
 		}
 		resultChan <- results
+		close(resultChan)
 	}()
 
 	return resultChan, errorChan
