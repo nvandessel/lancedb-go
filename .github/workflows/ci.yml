@@ -62,9 +62,6 @@ jobs:
           - os: macos-latest
             rust-target: aarch64-apple-darwin
             artifact-name: macos-arm64
-          - os: macos-13
-            rust-target: x86_64-apple-darwin
-            artifact-name: macos-x64
     runs-on: ${{ matrix.os }}
     
     steps:
@@ -175,13 +172,10 @@ jobs:
     name: Test Suite
     needs: build-artifacts
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
         go-version: ['1.21']
-#        exclude:
-#          # Optimize: only test latest Go on macOS
-#          - os: macos-latest
-#            go-version: '1.22'
 #          - os: macos-latest
 #            go-version: '1.21'
     runs-on: ${{ matrix.os }}
@@ -274,8 +268,10 @@ jobs:
           case "$UNAME_S" in
             Darwin)
               PLATFORM=darwin
+              SDK_VERSION=$(xcrun --show-sdk-version 2>/dev/null || echo "15.0")
+              export MACOSX_DEPLOYMENT_TARGET="$SDK_VERSION"
               FRAMEWORK_FLAGS="-framework Security -framework CoreFoundation"
-              CGO_LDFLAGS="$(pwd)/lib/darwin_${ARCH}/liblancedb_go.a $FRAMEWORK_FLAGS"
+              CGO_LDFLAGS="$(pwd)/lib/darwin_${ARCH}/liblancedb_go.a $FRAMEWORK_FLAGS -lc++ -lbz2 -lz"
               ;;
             Linux)
               PLATFORM=linux
@@ -322,8 +318,10 @@ jobs:
           case "$UNAME_S" in
             Darwin)
               PLATFORM=darwin
+              SDK_VERSION=$(xcrun --show-sdk-version 2>/dev/null || echo "15.0")
+              export MACOSX_DEPLOYMENT_TARGET="$SDK_VERSION"
               FRAMEWORK_FLAGS="-framework Security -framework CoreFoundation"
-              CGO_LDFLAGS="$(pwd)/lib/darwin_${ARCH}/liblancedb_go.a $FRAMEWORK_FLAGS"
+              CGO_LDFLAGS="$(pwd)/lib/darwin_${ARCH}/liblancedb_go.a $FRAMEWORK_FLAGS -lc++ -lbz2 -lz"
               ;;
             Linux)
               PLATFORM=linux
