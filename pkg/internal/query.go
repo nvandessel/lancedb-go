@@ -143,8 +143,12 @@ func (vq *VectorQueryBuilder) Columns(columns []string) lancedb.IVectorQueryBuil
 	return vq
 }
 
-// Offset sets the number of rows to skip
-func (vq *VectorQueryBuilder) Offset(offset int) lancedb.IVectorQueryBuilder {
+// Offset sets the number of rows to skip.
+// Note: this method exists on the concrete struct for completeness but is NOT
+// part of the IVectorQueryBuilder interface. ANN vector search returns the K
+// nearest neighbours and cannot be paginated with a row offset; Execute() will
+// return an error if a non-zero offset is set.
+func (vq *VectorQueryBuilder) Offset(offset int) *VectorQueryBuilder {
 	vq.QueryBuilder.Offset(offset)
 	return vq
 }

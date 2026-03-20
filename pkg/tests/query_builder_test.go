@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/lancedb/lancedb-go/pkg/contracts"
 	"github.com/lancedb/lancedb-go/pkg/internal"
 	"github.com/lancedb/lancedb-go/pkg/lancedb"
 )
@@ -400,14 +401,14 @@ func TestVectorQueryBuilder(t *testing.T) {
 	})
 
 	t.Run("ApplyOptions sets limit via MaxResults", func(t *testing.T) {
-		opts := &lancedb.QueryOptions{MaxResults: 2}
+		opts := &contracts.QueryOptions{MaxResults: 2}
 		results, err := table.VectorQuery("embedding", queryVec).ApplyOptions(opts).Execute()
 		require.NoError(t, err)
 		assert.Len(t, results, 2)
 	})
 
 	t.Run("ApplyOptions without MaxResults requires explicit Limit", func(t *testing.T) {
-		opts := &lancedb.QueryOptions{}
+		opts := &contracts.QueryOptions{}
 		_, err := table.VectorQuery("embedding", queryVec).ApplyOptions(opts).Execute()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "requires a positive K value")
