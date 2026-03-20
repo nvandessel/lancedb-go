@@ -149,14 +149,14 @@ func (vq *VectorQueryBuilder) Execute() ([]map[string]interface{}, error) {
 	if k <= 0 {
 		return nil, fmt.Errorf("vector search requires a positive K value: call .Limit(k) before .Execute()")
 	}
+	if vq.offset > 0 {
+		return nil, fmt.Errorf("vector search does not support Offset: ANN index returns the K nearest neighbours and cannot be paginated with a row offset")
+	}
 
 	config := vq.buildConfig()
-	// Clear config.Limit and config.Offset: for vector search, K is the
-	// authoritative result count and offset pagination is not supported by the
-	// ANN index. Sending these alongside VectorSearch to the Rust FFI could
-	// cause undefined behaviour (e.g. silently returning fewer-than-K results).
+	// Clear config.Limit: for vector search, K is the authoritative result
+	// count. Sending both to the Rust FFI could cause unexpected behaviour.
 	config.Limit = nil
-	config.Offset = nil
 	config.VectorSearch = &lancedb.VectorSearch{
 		Column: vq.column,
 		Vector: vq.vector,
