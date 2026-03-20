@@ -18,7 +18,6 @@ type IVectorQueryBuilder interface {
 	Limit(limit int) IVectorQueryBuilder
 	Columns(columns []string) IVectorQueryBuilder
 	Offset(offset int) IVectorQueryBuilder
-	DistanceType(_ DistanceType) IVectorQueryBuilder
 	Execute() ([]map[string]interface{}, error)
 	ExecuteAsync() (<-chan []map[string]interface{}, <-chan error)
 	ApplyOptions(options *QueryOptions) IVectorQueryBuilder
@@ -30,13 +29,3 @@ type QueryOptions struct {
 	UseFullPrecision  bool
 	BypassVectorIndex bool
 }
-
-// DistanceType represents vector distance metrics
-type DistanceType int
-
-const (
-	DistanceTypeL2 DistanceType = iota
-	DistanceTypeCosine
-	DistanceTypeDot
-	DistanceTypeHamming
-)

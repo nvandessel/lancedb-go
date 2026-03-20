@@ -137,17 +137,15 @@ func (vq *VectorQueryBuilder) Offset(offset int) lancedb.IVectorQueryBuilder {
 	return vq
 }
 
-// DistanceType sets the distance metric for vector search
-// NOTE: Currently a no-op. The Rust FFI uses a default distance metric.
-// Wiring this through requires adding the field to QueryConfig.VectorSearch
-// and the Rust FFI layer, which is out of scope.
-func (vq *VectorQueryBuilder) DistanceType(_ lancedb.DistanceType) lancedb.IVectorQueryBuilder {
-	return vq
-}
-
 // Execute executes the vector search query and returns results.
 // Delegates to Table.Select() which holds the mutex and checks closed state.
 func (vq *VectorQueryBuilder) Execute() ([]map[string]interface{}, error) {
+	if len(vq.vector) == 0 {
+		return nil, fmt.Errorf("vector search requires a non-empty query vector")
+	}
+	if vq.column == "" {
+		return nil, fmt.Errorf("vector search requires a non-empty column name")
+	}
 	k := vq.limit
 	if k <= 0 {
 		return nil, fmt.Errorf("vector search requires a positive K value: call .Limit(k) before .Execute()")

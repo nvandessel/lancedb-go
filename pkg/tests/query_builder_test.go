@@ -330,4 +330,57 @@ func TestVectorQueryBuilder(t *testing.T) {
 			assert.NotContains(t, row, "score")
 		}
 	})
+
+	t.Run("Nil vector returns error", func(t *testing.T) {
+		_, err := table.VectorQuery("embedding", nil).Limit(3).Execute()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "non-empty query vector")
+	})
+
+	t.Run("Empty vector returns error", func(t *testing.T) {
+		_, err := table.VectorQuery("embedding", []float32{}).Limit(3).Execute()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "non-empty query vector")
+	})
+
+	t.Run("Empty column name returns error", func(t *testing.T) {
+		_, err := table.VectorQuery("", queryVec).Limit(3).Execute()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "non-empty column name")
+	})
+
+	t.Run("Closed table returns error", func(t *testing.T) {
+		closedTable, closedCleanup := setupVectorQueryTestTable(t)
+		closedTable.Close()
+		defer closedCleanup()
+
+		_, err := closedTable.VectorQuery("embedding", queryVec).Limit(3).Execute()
+		assert.Error(t, err)
+	})
+
+	t.Run("ExecuteAsync returns results on channel", func(t *testing.T) {
+		resultChan, errChan := table.VectorQuery("embedding", queryVec).Limit(3).ExecuteAsync()
+
+		select {
+		case results := <-resultChan:
+			assert.Len(t, results, 3)
+		case err := <-errChan:
+			t.Fatalf("ExecuteAsync failed: %v", err)
+		}
+	})
+
+	t.Run("ExecuteAsync on closed table returns error on channel", func(t *testing.T) {
+		closedTable, closedCleanup := setupVectorQueryTestTable(t)
+		closedTable.Close()
+		defer closedCleanup()
+
+		resultChan, errChan := closedTable.VectorQuery("embedding", queryVec).Limit(3).ExecuteAsync()
+
+		select {
+		case <-resultChan:
+			t.Fatal("Expected error, got results")
+		case err := <-errChan:
+			assert.Error(t, err)
+		}
+	})
 }
