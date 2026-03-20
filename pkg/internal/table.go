@@ -228,9 +228,6 @@ func (t *Table) Query() contracts.IQueryBuilder {
 	return &QueryBuilder{
 		table:   t,
 		filters: make([]string, 0),
-		limit:   -1,
-		offset:  0,
-		columns: nil,
 	}
 }
 
