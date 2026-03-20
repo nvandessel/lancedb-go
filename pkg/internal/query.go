@@ -149,7 +149,7 @@ func (vq *VectorQueryBuilder) Execute() ([]map[string]interface{}, error) {
 	if k <= 0 {
 		return nil, fmt.Errorf("vector search requires a positive K value: call .Limit(k) before .Execute()")
 	}
-	if vq.offset > 0 {
+	if vq.offset != 0 {
 		return nil, fmt.Errorf("vector search does not support Offset: ANN index returns the K nearest neighbours and cannot be paginated with a row offset")
 	}
 
