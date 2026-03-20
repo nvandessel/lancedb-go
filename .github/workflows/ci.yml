@@ -271,11 +271,10 @@ jobs:
           case "$UNAME_S" in
             Darwin)
               PLATFORM=darwin
-              # Match deployment target to SDK version to avoid linker version mismatch errors
               SDK_VERSION=$(xcrun --show-sdk-version 2>/dev/null || echo "15.0")
               export MACOSX_DEPLOYMENT_TARGET="$SDK_VERSION"
               FRAMEWORK_FLAGS="-framework Security -framework CoreFoundation"
-              CGO_LDFLAGS="$(pwd)/lib/darwin_${ARCH}/liblancedb_go.a $FRAMEWORK_FLAGS"
+              CGO_LDFLAGS="$(pwd)/lib/darwin_${ARCH}/liblancedb_go.a $FRAMEWORK_FLAGS -lc++"
               ;;
             Linux)
               PLATFORM=linux
@@ -322,11 +321,10 @@ jobs:
           case "$UNAME_S" in
             Darwin)
               PLATFORM=darwin
-              # Match deployment target to SDK version to avoid linker version mismatch errors
               SDK_VERSION=$(xcrun --show-sdk-version 2>/dev/null || echo "15.0")
               export MACOSX_DEPLOYMENT_TARGET="$SDK_VERSION"
               FRAMEWORK_FLAGS="-framework Security -framework CoreFoundation"
-              CGO_LDFLAGS="$(pwd)/lib/darwin_${ARCH}/liblancedb_go.a $FRAMEWORK_FLAGS"
+              CGO_LDFLAGS="$(pwd)/lib/darwin_${ARCH}/liblancedb_go.a $FRAMEWORK_FLAGS -lc++"
               ;;
             Linux)
               PLATFORM=linux
