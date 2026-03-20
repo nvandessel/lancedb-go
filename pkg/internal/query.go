@@ -65,7 +65,7 @@ func (q *QueryBuilder) Execute() ([]map[string]interface{}, error) {
 // executeAsync runs fn in a goroutine and routes its result or error to
 // the returned buffered channels. Exactly one channel receives a value;
 // both are always closed (via defer) so callers can safely use the
-// two-value receive form or range. Callers should check the ok flag to
+// two-value receive form. Callers should check the ok flag to
 // distinguish a real value (ok=true) from a closed-empty channel (ok=false)
 // that may appear when the scheduler picks the other channel first.
 func executeAsync(fn func() ([]map[string]interface{}, error)) (<-chan []map[string]interface{}, <-chan error) {
@@ -143,16 +143,6 @@ func (vq *VectorQueryBuilder) Columns(columns []string) lancedb.IVectorQueryBuil
 	return vq
 }
 
-// Offset sets the number of rows to skip.
-// Note: this method exists on the concrete struct for completeness but is NOT
-// part of the IVectorQueryBuilder interface. ANN vector search returns the K
-// nearest neighbours and cannot be paginated with a row offset; Execute() will
-// return an error if a non-zero offset is set.
-func (vq *VectorQueryBuilder) Offset(offset int) *VectorQueryBuilder {
-	vq.QueryBuilder.Offset(offset)
-	return vq
-}
-
 // Execute executes the vector search query and returns results.
 // Delegates to Table.Select() which holds the mutex and checks closed state.
 func (vq *VectorQueryBuilder) Execute() ([]map[string]interface{}, error) {
@@ -162,33 +152,26 @@ func (vq *VectorQueryBuilder) Execute() ([]map[string]interface{}, error) {
 	if vq.column == "" {
 		return nil, fmt.Errorf("vector search requires a non-empty column name")
 	}
+
+	k := vq.limit
 	if !vq.limitSet {
 		return nil, fmt.Errorf("vector search requires a positive K value: call .Limit(k) before .Execute()")
 	}
-	k := vq.limit
 	if k <= 0 {
-		return nil, fmt.Errorf("vector search K must be a positive integer, got %d", k)
-	}
-	if vq.offset != 0 {
-		return nil, fmt.Errorf("vector search does not support Offset: ANN index returns the K nearest neighbours and cannot be paginated with a row offset")
+		return nil, fmt.Errorf("K must be a positive integer, got %d", k)
 	}
 
-	// Build config without Limit or Offset — those fields are irrelevant for
-	// vector search; K is the authoritative result count and ANN does not
-	// support row-offset pagination.
-	config := lancedb.QueryConfig{}
-	if len(vq.filters) > 0 {
-		config.Where = strings.Join(vq.filters, " AND ")
+	if vq.offset != 0 {
+		return nil, fmt.Errorf("VectorQueryBuilder does not support Offset(); use QueryBuilder for offset-based pagination")
 	}
-	if len(vq.columns) > 0 {
-		config.Columns = vq.columns
-	}
+
+	config := vq.buildConfig()
+	config.Limit = nil // K is authoritative for vector search
 	config.VectorSearch = &lancedb.VectorSearch{
 		Column: vq.column,
 		Vector: vq.vector,
 		K:      k,
 	}
-
 	return vq.table.Select(context.Background(), config)
 }
 
