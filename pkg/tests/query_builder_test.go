@@ -379,6 +379,12 @@ func TestVectorQueryBuilder(t *testing.T) {
 		assert.Contains(t, err.Error(), "non-empty query vector")
 	})
 
+	t.Run("Non-zero offset returns error", func(t *testing.T) {
+		_, err := table.VectorQuery("embedding", queryVec).Offset(1).Limit(3).Execute()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "does not support Offset")
+	})
+
 	t.Run("Empty vector returns error", func(t *testing.T) {
 		_, err := table.VectorQuery("embedding", []float32{}).Limit(3).Execute()
 		require.Error(t, err)
