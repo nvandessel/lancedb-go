@@ -363,6 +363,7 @@ jobs:
         env:
           RUST_TARGET: ${{ matrix.rust_target }}
           PROTOC: ${{ env.PROTOC }}
+          MACOSX_DEPLOYMENT_TARGET: ${{ matrix.platform == 'darwin' && '13.0' || '' }}
 
       - name: Build native library (Windows)
         if: matrix.platform == 'windows'

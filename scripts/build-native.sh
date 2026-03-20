@@ -62,6 +62,12 @@ rustup target add "$RUST_TARGET"
 echo "🔨 Building Rust library..."
 cd "$RUST_DIR"
 
+# Set macOS deployment target for backward compatibility
+if [[ "$PLATFORM" == "darwin" ]]; then
+    export MACOSX_DEPLOYMENT_TARGET="13.0"
+    echo "   MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET"
+fi
+
 # Build the library
 CARGO_TARGET_DIR="$RUST_DIR/target" cargo build --release --target "$RUST_TARGET"
 
