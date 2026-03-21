@@ -147,6 +147,8 @@ func (vq *VectorQueryBuilder) Columns(columns []string) lancedb.IVectorQueryBuil
 // distanceTypeToString converts a DistanceType enum to the JSON string expected by the Rust FFI
 func distanceTypeToString(dt lancedb.DistanceType) string {
 	switch dt {
+	case lancedb.DistanceL2:
+		return "l2"
 	case lancedb.DistanceCosine:
 		return "cosine"
 	case lancedb.DistanceDot:
