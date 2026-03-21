@@ -17,6 +17,7 @@ type IVectorQueryBuilder interface {
 	Filter(condition string) IVectorQueryBuilder
 	Limit(limit int) IVectorQueryBuilder
 	Columns(columns []string) IVectorQueryBuilder
+	DistanceType(dt DistanceType) IVectorQueryBuilder
 	Execute() ([]map[string]interface{}, error)
 	ExecuteAsync() (<-chan []map[string]interface{}, <-chan error)
 	ApplyOptions(options *QueryOptions) IVectorQueryBuilder
