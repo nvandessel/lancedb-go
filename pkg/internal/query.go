@@ -26,8 +26,8 @@ var _ lancedb.IVectorQueryBuilder = (*VectorQueryBuilder)(nil)
 // VectorQueryBuilder extends QueryBuilder for vector similarity searches
 type VectorQueryBuilder struct {
 	QueryBuilder
-	vector   []float32
-	column   string
+	vector       []float32
+	column       string
 	limitSet     bool // tracks whether Limit() was explicitly called
 	distanceType *lancedb.DistanceType
 }

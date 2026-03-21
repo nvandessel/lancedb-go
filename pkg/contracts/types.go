@@ -53,10 +53,10 @@ type QueryConfig struct {
 
 // VectorSearch represents vector similarity search parameters
 type VectorSearch struct {
-	Column       string  `json:"column"`
+	Column       string    `json:"column"`
 	Vector       []float32 `json:"vector"`
-	K            int     `json:"k"`
-	DistanceType *string `json:"distance_type,omitempty"`
+	K            int       `json:"k"`
+	DistanceType *string   `json:"distance_type,omitempty"`
 }
 
 // FTSSearch represents full-text search parameters
