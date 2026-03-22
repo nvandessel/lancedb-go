@@ -19,9 +19,10 @@ const (
 type DistanceType int
 
 const (
-	DistanceL2     DistanceType = iota // Euclidean distance
-	DistanceCosine                     // Cosine similarity
-	DistanceDot                        // Dot product
+	DistanceTypeUnspecified DistanceType = iota // use backend default
+	DistanceL2                                  // Euclidean distance
+	DistanceCosine                              // Cosine similarity
+	DistanceDot                                 // Dot product
 )
 
 // IndexInfo represents information about an index on a table

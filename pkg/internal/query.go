@@ -153,6 +153,8 @@ func distanceTypeToString(dt lancedb.DistanceType) string {
 		return "cosine"
 	case lancedb.DistanceDot:
 		return "dot"
+	case lancedb.DistanceTypeUnspecified:
+		return "" // caller should skip setting distance_type
 	default:
 		return "l2"
 	}
@@ -193,7 +195,7 @@ func (vq *VectorQueryBuilder) Execute() ([]map[string]interface{}, error) {
 		Vector: vq.vector,
 		K:      k,
 	}
-	if vq.distanceType != nil {
+	if vq.distanceType != nil && *vq.distanceType != lancedb.DistanceTypeUnspecified {
 		dt := distanceTypeToString(*vq.distanceType)
 		config.VectorSearch.DistanceType = &dt
 	}
