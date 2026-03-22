@@ -73,6 +73,14 @@ func executeAsync(ctx context.Context, fn func(context.Context) ([]map[string]in
 	resultChan := make(chan []map[string]interface{}, 1)
 	errorChan := make(chan error, 1)
 
+	// Short-circuit if context is already cancelled
+	if err := ctx.Err(); err != nil {
+		errorChan <- err
+		close(resultChan)
+		close(errorChan)
+		return resultChan, errorChan
+	}
+
 	go func() {
 		defer close(resultChan)
 		defer close(errorChan)
