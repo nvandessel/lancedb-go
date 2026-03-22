@@ -26,9 +26,10 @@ var _ lancedb.IVectorQueryBuilder = (*VectorQueryBuilder)(nil)
 // VectorQueryBuilder extends QueryBuilder for vector similarity searches
 type VectorQueryBuilder struct {
 	QueryBuilder
-	vector   []float32
-	column   string
-	limitSet bool // tracks whether Limit() was explicitly called
+	vector       []float32
+	column       string
+	limitSet     bool // tracks whether Limit() was explicitly called
+	distanceType *lancedb.DistanceType
 }
 
 // Filter adds a filter condition to the query
@@ -143,6 +144,27 @@ func (vq *VectorQueryBuilder) Columns(columns []string) lancedb.IVectorQueryBuil
 	return vq
 }
 
+// distanceTypeToString converts a DistanceType enum to the JSON string expected by the Rust FFI.
+// Must only be called with an explicitly set, non-Unspecified value — caller guards against Unspecified.
+func distanceTypeToString(dt lancedb.DistanceType) string {
+	switch dt {
+	case lancedb.DistanceTypeL2:
+		return "l2"
+	case lancedb.DistanceTypeCosine:
+		return "cosine"
+	case lancedb.DistanceTypeDot:
+		return "dot"
+	default:
+		return "l2"
+	}
+}
+
+// DistanceType sets the distance metric for vector similarity search
+func (vq *VectorQueryBuilder) DistanceType(dt lancedb.DistanceType) lancedb.IVectorQueryBuilder {
+	vq.distanceType = &dt
+	return vq
+}
+
 // Execute executes the vector search query and returns results.
 // Delegates to Table.Select() which holds the mutex and checks closed state.
 func (vq *VectorQueryBuilder) Execute() ([]map[string]interface{}, error) {
@@ -171,6 +193,10 @@ func (vq *VectorQueryBuilder) Execute() ([]map[string]interface{}, error) {
 		Column: vq.column,
 		Vector: vq.vector,
 		K:      k,
+	}
+	if vq.distanceType != nil && *vq.distanceType != lancedb.DistanceTypeUnspecified {
+		dt := distanceTypeToString(*vq.distanceType)
+		config.VectorSearch.DistanceType = &dt
 	}
 	return vq.table.Select(context.Background(), config)
 }

@@ -435,6 +435,39 @@ func TestVectorQueryBuilder(t *testing.T) {
 		}
 	})
 
+	t.Run("DistanceType L2 executes successfully", func(t *testing.T) {
+		results, err := table.VectorQuery("embedding", queryVec).
+			Limit(3).
+			DistanceType(contracts.DistanceTypeL2).
+			Execute()
+		require.NoError(t, err)
+		assert.Len(t, results, 3)
+	})
+
+	t.Run("DistanceType Cosine executes successfully", func(t *testing.T) {
+		results, err := table.VectorQuery("embedding", queryVec).
+			Limit(3).
+			DistanceType(contracts.DistanceTypeCosine).
+			Execute()
+		require.NoError(t, err)
+		assert.Len(t, results, 3)
+	})
+
+	t.Run("DistanceType Dot executes successfully", func(t *testing.T) {
+		results, err := table.VectorQuery("embedding", queryVec).
+			Limit(3).
+			DistanceType(contracts.DistanceTypeDot).
+			Execute()
+		require.NoError(t, err)
+		assert.Len(t, results, 3)
+	})
+
+	t.Run("Default distance type works without explicit set", func(t *testing.T) {
+		results, err := table.VectorQuery("embedding", queryVec).Limit(3).Execute()
+		require.NoError(t, err)
+		assert.Len(t, results, 3)
+	})
+
 	t.Run("ExecuteAsync on closed table returns error on channel", func(t *testing.T) {
 		closedTable, closedCleanup := setupVectorQueryTestTable(t)
 		closedTable.Close()

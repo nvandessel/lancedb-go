@@ -93,6 +93,19 @@ pub extern "C" fn simple_lancedb_table_select_query(
                                 }
                             }
 
+                            // Apply distance type for vector queries
+                            if let Some(dt) = vector_search.get("distance_type").and_then(|v| v.as_str()) {
+                                let distance = match dt {
+                                    "l2" => lancedb::DistanceType::L2,
+                                    "cosine" => lancedb::DistanceType::Cosine,
+                                    "dot" => lancedb::DistanceType::Dot,
+                                    other => return Err(lancedb::Error::InvalidInput {
+                                        message: format!("Unknown distance type: {}", other),
+                                    }),
+                                };
+                                vector_query = vector_query.distance_type(distance);
+                            }
+
                             return vector_query.execute().await;
                         }
                         Err(e) => {
