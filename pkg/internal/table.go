@@ -14,6 +14,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"runtime"
 	"sync"
 	"unsafe"
@@ -585,6 +586,12 @@ func (t *Table) SelectIPC(_ context.Context, config contracts.QueryConfig) ([]by
 
 	if resultIPCData == nil || resultIPCLen == 0 {
 		return nil, nil // Empty result set
+	}
+
+	// Guard against integer truncation for payloads > 2GB
+	if resultIPCLen > C.size_t(math.MaxInt32) {
+		C.simple_lancedb_free_ipc_data(resultIPCData)
+		return nil, fmt.Errorf("IPC result too large (%d bytes) to copy", resultIPCLen)
 	}
 
 	// Copy IPC data to Go-owned memory and free C allocation
