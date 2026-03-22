@@ -438,7 +438,7 @@ func TestVectorQueryBuilder(t *testing.T) {
 	t.Run("DistanceType L2 executes successfully", func(t *testing.T) {
 		results, err := table.VectorQuery("embedding", queryVec).
 			Limit(3).
-			DistanceType(contracts.DistanceL2).
+			DistanceType(contracts.DistanceTypeL2).
 			Execute()
 		require.NoError(t, err)
 		assert.Len(t, results, 3)
@@ -447,7 +447,7 @@ func TestVectorQueryBuilder(t *testing.T) {
 	t.Run("DistanceType Cosine executes successfully", func(t *testing.T) {
 		results, err := table.VectorQuery("embedding", queryVec).
 			Limit(3).
-			DistanceType(contracts.DistanceCosine).
+			DistanceType(contracts.DistanceTypeCosine).
 			Execute()
 		require.NoError(t, err)
 		assert.Len(t, results, 3)
@@ -456,7 +456,7 @@ func TestVectorQueryBuilder(t *testing.T) {
 	t.Run("DistanceType Dot executes successfully", func(t *testing.T) {
 		results, err := table.VectorQuery("embedding", queryVec).
 			Limit(3).
-			DistanceType(contracts.DistanceDot).
+			DistanceType(contracts.DistanceTypeDot).
 			Execute()
 		require.NoError(t, err)
 		assert.Len(t, results, 3)
