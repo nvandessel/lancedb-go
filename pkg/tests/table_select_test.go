@@ -332,6 +332,12 @@ func TestSelectQueries(t *testing.T) {
 	})
 
 	t.Run("Full-Text Search", func(t *testing.T) {
+		// FTS requires an index on the search column
+		err := table.CreateIndex(context.Background(), []string{"name"}, contracts.IndexTypeFts)
+		if err != nil {
+			t.Fatalf("❌Failed to create FTS index: %v", err)
+		}
+
 		config := contracts.QueryConfig{
 			FTSSearch: &contracts.FTSSearch{
 				Column: "name",
@@ -339,7 +345,7 @@ func TestSelectQueries(t *testing.T) {
 			},
 		}
 
-		_, err := table.Select(context.Background(), config)
+		_, err = table.Select(context.Background(), config)
 		if err != nil {
 			t.Fatalf("❌Unexpected error for FTS search: %v", err)
 		}

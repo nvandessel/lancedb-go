@@ -102,9 +102,8 @@ func TestFullTextSearch(t *testing.T) {
 		assert.GreaterOrEqual(t, len(results), 1)
 		for _, row := range results {
 			id, ok := row["id"].(float64)
-			if ok {
-				assert.Less(t, id, 3.0)
-			}
+			require.True(t, ok, "id field should be float64, got %T", row["id"])
+			assert.Less(t, id, 3.0)
 		}
 	})
 

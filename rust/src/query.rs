@@ -120,39 +120,44 @@ pub extern "C" fn simple_lancedb_table_select_query(
 
             // Apply full-text search
             if let Some(fts_search) = query_config.get("fts_search") {
-                if let Some(query_text) = fts_search.get("query").and_then(|v| v.as_str()) {
-                    let mut fts_query_obj = FullTextSearchQuery::new(query_text.to_string());
+                let query_text = fts_search
+                    .get("query")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| lancedb::Error::InvalidInput {
+                        message: "fts_search requires a non-null 'query' field".to_string(),
+                    })?;
 
-                    if let Some(column) = fts_search.get("column").and_then(|v| v.as_str()) {
-                        fts_query_obj = fts_query_obj
-                            .with_column(column.to_string())
-                            .map_err(|e| lancedb::Error::InvalidInput {
-                                message: format!("Invalid FTS column: {}", e),
-                            })?;
-                    }
+                let mut fts_query_obj = FullTextSearchQuery::new(query_text.to_string());
 
-                    let mut fts_query = table.query().full_text_search(fts_query_obj);
-
-                    if let Some(columns) = query_config.get("columns").and_then(|v| v.as_array()) {
-                        let column_names: Vec<String> = columns
-                            .iter()
-                            .filter_map(|v| v.as_str())
-                            .map(|s| s.to_string())
-                            .collect();
-                        if !column_names.is_empty() {
-                            fts_query = fts_query
-                                .select(lancedb::query::Select::Columns(column_names));
-                        }
-                    }
-                    if let Some(filter) = query_config.get("where").and_then(|v| v.as_str()) {
-                        fts_query = fts_query.only_if(filter);
-                    }
-                    if let Some(limit) = query_config.get("limit").and_then(|v| v.as_u64()) {
-                        fts_query = fts_query.limit(limit as usize);
-                    }
-
-                    return fts_query.execute().await;
+                if let Some(column) = fts_search.get("column").and_then(|v| v.as_str()) {
+                    fts_query_obj = fts_query_obj
+                        .with_column(column.to_string())
+                        .map_err(|e| lancedb::Error::InvalidInput {
+                            message: format!("Invalid FTS column: {}", e),
+                        })?;
                 }
+
+                let mut fts_query = table.query().full_text_search(fts_query_obj);
+
+                if let Some(columns) = query_config.get("columns").and_then(|v| v.as_array()) {
+                    let column_names: Vec<String> = columns
+                        .iter()
+                        .filter_map(|v| v.as_str())
+                        .map(|s| s.to_string())
+                        .collect();
+                    if !column_names.is_empty() {
+                        fts_query = fts_query
+                            .select(lancedb::query::Select::Columns(column_names));
+                    }
+                }
+                if let Some(filter) = query_config.get("where").and_then(|v| v.as_str()) {
+                    fts_query = fts_query.only_if(filter);
+                }
+                if let Some(limit) = query_config.get("limit").and_then(|v| v.as_u64()) {
+                    fts_query = fts_query.limit(limit as usize);
+                }
+
+                return fts_query.execute().await;
             }
 
             // For non-vector queries, use regular query
@@ -375,39 +380,44 @@ pub extern "C" fn simple_lancedb_table_select_query_ipc(
 
             // Apply full-text search
             if let Some(fts_search) = query_config.get("fts_search") {
-                if let Some(query_text) = fts_search.get("query").and_then(|v| v.as_str()) {
-                    let mut fts_query_obj = FullTextSearchQuery::new(query_text.to_string());
+                let query_text = fts_search
+                    .get("query")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| lancedb::Error::InvalidInput {
+                        message: "fts_search requires a non-null 'query' field".to_string(),
+                    })?;
 
-                    if let Some(column) = fts_search.get("column").and_then(|v| v.as_str()) {
-                        fts_query_obj = fts_query_obj
-                            .with_column(column.to_string())
-                            .map_err(|e| lancedb::Error::InvalidInput {
-                                message: format!("Invalid FTS column: {}", e),
-                            })?;
-                    }
+                let mut fts_query_obj = FullTextSearchQuery::new(query_text.to_string());
 
-                    let mut fts_query = table.query().full_text_search(fts_query_obj);
-
-                    if let Some(columns) = query_config.get("columns").and_then(|v| v.as_array()) {
-                        let column_names: Vec<String> = columns
-                            .iter()
-                            .filter_map(|v| v.as_str())
-                            .map(|s| s.to_string())
-                            .collect();
-                        if !column_names.is_empty() {
-                            fts_query = fts_query
-                                .select(lancedb::query::Select::Columns(column_names));
-                        }
-                    }
-                    if let Some(filter) = query_config.get("where").and_then(|v| v.as_str()) {
-                        fts_query = fts_query.only_if(filter);
-                    }
-                    if let Some(limit) = query_config.get("limit").and_then(|v| v.as_u64()) {
-                        fts_query = fts_query.limit(limit as usize);
-                    }
-
-                    return fts_query.execute().await;
+                if let Some(column) = fts_search.get("column").and_then(|v| v.as_str()) {
+                    fts_query_obj = fts_query_obj
+                        .with_column(column.to_string())
+                        .map_err(|e| lancedb::Error::InvalidInput {
+                            message: format!("Invalid FTS column: {}", e),
+                        })?;
                 }
+
+                let mut fts_query = table.query().full_text_search(fts_query_obj);
+
+                if let Some(columns) = query_config.get("columns").and_then(|v| v.as_array()) {
+                    let column_names: Vec<String> = columns
+                        .iter()
+                        .filter_map(|v| v.as_str())
+                        .map(|s| s.to_string())
+                        .collect();
+                    if !column_names.is_empty() {
+                        fts_query = fts_query
+                            .select(lancedb::query::Select::Columns(column_names));
+                    }
+                }
+                if let Some(filter) = query_config.get("where").and_then(|v| v.as_str()) {
+                    fts_query = fts_query.only_if(filter);
+                }
+                if let Some(limit) = query_config.get("limit").and_then(|v| v.as_u64()) {
+                    fts_query = fts_query.limit(limit as usize);
+                }
+
+                return fts_query.execute().await;
             }
 
             // For non-vector queries, use regular query
