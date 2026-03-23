@@ -345,9 +345,12 @@ func TestSelectQueries(t *testing.T) {
 			},
 		}
 
-		_, err = table.Select(context.Background(), config)
+		results, err := table.Select(context.Background(), config)
 		if err != nil {
 			t.Fatalf("❌Unexpected error for FTS search: %v", err)
+		}
+		if len(results) == 0 {
+			t.Fatal("❌Expected at least one FTS result for 'Alice', got none")
 		}
 		t.Log("✅ FTS search completed successfully")
 	})
