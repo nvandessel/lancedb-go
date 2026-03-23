@@ -58,9 +58,9 @@ func (q *QueryBuilder) Offset(offset int) lancedb.IQueryBuilder {
 
 // Execute executes the query and returns results.
 // Delegates to Table.Select() which holds the mutex and checks closed state.
-func (q *QueryBuilder) Execute() ([]map[string]interface{}, error) {
+func (q *QueryBuilder) Execute(ctx context.Context) ([]map[string]interface{}, error) {
 	config := q.buildConfig()
-	return q.table.Select(context.Background(), config)
+	return q.table.Select(ctx, config)
 }
 
 // executeAsync runs fn in a goroutine and routes its result or error to
@@ -69,15 +69,23 @@ func (q *QueryBuilder) Execute() ([]map[string]interface{}, error) {
 // two-value receive form. Callers should check the ok flag to
 // distinguish a real value (ok=true) from a closed-empty channel (ok=false)
 // that may appear when the scheduler picks the other channel first.
-func executeAsync(fn func() ([]map[string]interface{}, error)) (<-chan []map[string]interface{}, <-chan error) {
+func executeAsync(ctx context.Context, fn func(context.Context) ([]map[string]interface{}, error)) (<-chan []map[string]interface{}, <-chan error) {
 	resultChan := make(chan []map[string]interface{}, 1)
 	errorChan := make(chan error, 1)
+
+	// Short-circuit if context is already cancelled
+	if err := ctx.Err(); err != nil {
+		errorChan <- err
+		close(resultChan)
+		close(errorChan)
+		return resultChan, errorChan
+	}
 
 	go func() {
 		defer close(resultChan)
 		defer close(errorChan)
 
-		results, err := fn()
+		results, err := fn(ctx)
 		if err != nil {
 			errorChan <- err
 		} else {
@@ -89,8 +97,8 @@ func executeAsync(fn func() ([]map[string]interface{}, error)) (<-chan []map[str
 }
 
 // ExecuteAsync executes the query asynchronously
-func (q *QueryBuilder) ExecuteAsync() (<-chan []map[string]interface{}, <-chan error) {
-	return executeAsync(q.Execute)
+func (q *QueryBuilder) ExecuteAsync(ctx context.Context) (<-chan []map[string]interface{}, <-chan error) {
+	return executeAsync(ctx, q.Execute)
 }
 
 // ApplyOptions applies query options to the builder
@@ -167,7 +175,7 @@ func (vq *VectorQueryBuilder) DistanceType(dt lancedb.DistanceType) lancedb.IVec
 
 // Execute executes the vector search query and returns results.
 // Delegates to Table.Select() which holds the mutex and checks closed state.
-func (vq *VectorQueryBuilder) Execute() ([]map[string]interface{}, error) {
+func (vq *VectorQueryBuilder) Execute(ctx context.Context) ([]map[string]interface{}, error) {
 	if len(vq.vector) == 0 {
 		return nil, fmt.Errorf("vector search requires a non-empty query vector")
 	}
@@ -198,12 +206,12 @@ func (vq *VectorQueryBuilder) Execute() ([]map[string]interface{}, error) {
 		dt := distanceTypeToString(*vq.distanceType)
 		config.VectorSearch.DistanceType = &dt
 	}
-	return vq.table.Select(context.Background(), config)
+	return vq.table.Select(ctx, config)
 }
 
 // ExecuteAsync executes the vector query asynchronously
-func (vq *VectorQueryBuilder) ExecuteAsync() (<-chan []map[string]interface{}, <-chan error) {
-	return executeAsync(vq.Execute)
+func (vq *VectorQueryBuilder) ExecuteAsync(ctx context.Context) (<-chan []map[string]interface{}, <-chan error) {
+	return executeAsync(ctx, vq.Execute)
 }
 
 // ApplyOptions applies query options to the vector query builder.

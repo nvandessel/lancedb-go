@@ -190,13 +190,13 @@ func TestQueryBuilderExecute(t *testing.T) {
 	defer cleanup()
 
 	t.Run("Execute with no options returns all rows", func(t *testing.T) {
-		results, err := table.Query().Execute()
+		results, err := table.Query().Execute(context.Background())
 		require.NoError(t, err)
 		assert.Len(t, results, 5)
 	})
 
 	t.Run("Execute with filter", func(t *testing.T) {
-		results, err := table.Query().Filter("score > 90").Execute()
+		results, err := table.Query().Filter("score > 90").Execute(context.Background())
 		require.NoError(t, err)
 		assert.Len(t, results, 3)
 		for _, row := range results {
@@ -210,7 +210,7 @@ func TestQueryBuilderExecute(t *testing.T) {
 		results, err := table.Query().
 			Filter("score > 85").
 			Filter("score < 95").
-			Execute()
+			Execute(context.Background())
 		require.NoError(t, err)
 		assert.Len(t, results, 4)
 		for _, row := range results {
@@ -222,19 +222,19 @@ func TestQueryBuilderExecute(t *testing.T) {
 	})
 
 	t.Run("Execute with limit", func(t *testing.T) {
-		results, err := table.Query().Limit(2).Execute()
+		results, err := table.Query().Limit(2).Execute(context.Background())
 		require.NoError(t, err)
 		assert.Len(t, results, 2)
 	})
 
 	t.Run("Execute with offset", func(t *testing.T) {
-		results, err := table.Query().Offset(2).Execute()
+		results, err := table.Query().Offset(2).Execute(context.Background())
 		require.NoError(t, err)
 		assert.Len(t, results, 3)
 	})
 
 	t.Run("Execute with columns", func(t *testing.T) {
-		results, err := table.Query().Columns([]string{"id", "name"}).Execute()
+		results, err := table.Query().Columns([]string{"id", "name"}).Execute(context.Background())
 		require.NoError(t, err)
 		assert.Len(t, results, 5)
 		for i, row := range results {
@@ -245,7 +245,7 @@ func TestQueryBuilderExecute(t *testing.T) {
 	})
 
 	t.Run("Execute with filter and limit chained", func(t *testing.T) {
-		results, err := table.Query().Filter("score > 85").Limit(2).Execute()
+		results, err := table.Query().Filter("score > 85").Limit(2).Execute(context.Background())
 		require.NoError(t, err)
 		assert.Len(t, results, 2)
 	})
@@ -255,7 +255,7 @@ func TestQueryBuilderExecute(t *testing.T) {
 		closedTable.Close()
 		defer closedCleanup()
 
-		_, err := closedTable.Query().Execute()
+		_, err := closedTable.Query().Execute(context.Background())
 		require.Error(t, err)
 	})
 }
@@ -265,7 +265,7 @@ func TestQueryBuilderExecuteAsync(t *testing.T) {
 	defer cleanup()
 
 	t.Run("ExecuteAsync returns results on channel", func(t *testing.T) {
-		resultChan, errChan := table.Query().Filter("score > 90").ExecuteAsync()
+		resultChan, errChan := table.Query().Filter("score > 90").ExecuteAsync(context.Background())
 
 		select {
 		case results, ok := <-resultChan:
@@ -292,7 +292,7 @@ func TestQueryBuilderExecuteAsync(t *testing.T) {
 		closedTable.Close()
 		defer closedCleanup()
 
-		resultChan, errChan := closedTable.Query().ExecuteAsync()
+		resultChan, errChan := closedTable.Query().ExecuteAsync(context.Background())
 
 		select {
 		case results, ok := <-resultChan:
@@ -325,7 +325,7 @@ func TestVectorQueryBuilder(t *testing.T) {
 	}
 
 	t.Run("Limit returns results", func(t *testing.T) {
-		results, err := table.VectorQuery("embedding", queryVec).Limit(3).Execute()
+		results, err := table.VectorQuery("embedding", queryVec).Limit(3).Execute(context.Background())
 		require.NoError(t, err)
 		assert.Len(t, results, 3)
 	})
@@ -333,7 +333,7 @@ func TestVectorQueryBuilder(t *testing.T) {
 	t.Run("Limit with Filter returns filtered results", func(t *testing.T) {
 		// score > 93 matches only Alice(95.5) and Eve(94.1), proving the filter
 		// actually reduces results rather than trivially matching all rows.
-		results, err := table.VectorQuery("embedding", queryVec).Limit(5).Filter("score > 93").Execute()
+		results, err := table.VectorQuery("embedding", queryVec).Limit(5).Filter("score > 93").Execute(context.Background())
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		for _, row := range results {
@@ -344,25 +344,25 @@ func TestVectorQueryBuilder(t *testing.T) {
 	})
 
 	t.Run("Without Limit returns error", func(t *testing.T) {
-		_, err := table.VectorQuery("embedding", queryVec).Execute()
+		_, err := table.VectorQuery("embedding", queryVec).Execute(context.Background())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "vector search requires a positive K value")
 	})
 
 	t.Run("Zero Limit returns error", func(t *testing.T) {
-		_, err := table.VectorQuery("embedding", queryVec).Limit(0).Execute()
+		_, err := table.VectorQuery("embedding", queryVec).Limit(0).Execute(context.Background())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "K must be a positive integer")
 	})
 
 	t.Run("Negative Limit returns error", func(t *testing.T) {
-		_, err := table.VectorQuery("embedding", queryVec).Limit(-5).Execute()
+		_, err := table.VectorQuery("embedding", queryVec).Limit(-5).Execute(context.Background())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "K must be a positive integer")
 	})
 
 	t.Run("Columns restricts returned fields", func(t *testing.T) {
-		results, err := table.VectorQuery("embedding", queryVec).Limit(3).Columns([]string{"id", "name"}).Execute()
+		results, err := table.VectorQuery("embedding", queryVec).Limit(3).Columns([]string{"id", "name"}).Execute(context.Background())
 		require.NoError(t, err)
 		require.NotEmpty(t, results)
 		for _, row := range results {
@@ -374,19 +374,19 @@ func TestVectorQueryBuilder(t *testing.T) {
 	})
 
 	t.Run("Nil vector returns error", func(t *testing.T) {
-		_, err := table.VectorQuery("embedding", nil).Limit(3).Execute()
+		_, err := table.VectorQuery("embedding", nil).Limit(3).Execute(context.Background())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "non-empty query vector")
 	})
 
 	t.Run("Empty vector returns error", func(t *testing.T) {
-		_, err := table.VectorQuery("embedding", []float32{}).Limit(3).Execute()
+		_, err := table.VectorQuery("embedding", []float32{}).Limit(3).Execute(context.Background())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "non-empty query vector")
 	})
 
 	t.Run("Empty column name returns error", func(t *testing.T) {
-		_, err := table.VectorQuery("", queryVec).Limit(3).Execute()
+		_, err := table.VectorQuery("", queryVec).Limit(3).Execute(context.Background())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "non-empty column name")
 	})
@@ -396,26 +396,26 @@ func TestVectorQueryBuilder(t *testing.T) {
 		closedTable.Close()
 		defer closedCleanup()
 
-		_, err := closedTable.VectorQuery("embedding", queryVec).Limit(3).Execute()
+		_, err := closedTable.VectorQuery("embedding", queryVec).Limit(3).Execute(context.Background())
 		require.Error(t, err)
 	})
 
 	t.Run("ApplyOptions sets limit via MaxResults", func(t *testing.T) {
 		opts := &contracts.QueryOptions{MaxResults: 2}
-		results, err := table.VectorQuery("embedding", queryVec).ApplyOptions(opts).Execute()
+		results, err := table.VectorQuery("embedding", queryVec).ApplyOptions(opts).Execute(context.Background())
 		require.NoError(t, err)
 		assert.Len(t, results, 2)
 	})
 
 	t.Run("ApplyOptions without MaxResults requires explicit Limit", func(t *testing.T) {
 		opts := &contracts.QueryOptions{}
-		_, err := table.VectorQuery("embedding", queryVec).ApplyOptions(opts).Execute()
+		_, err := table.VectorQuery("embedding", queryVec).ApplyOptions(opts).Execute(context.Background())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "requires a positive K value")
 	})
 
 	t.Run("ExecuteAsync returns results on channel", func(t *testing.T) {
-		resultChan, errChan := table.VectorQuery("embedding", queryVec).Limit(3).ExecuteAsync()
+		resultChan, errChan := table.VectorQuery("embedding", queryVec).Limit(3).ExecuteAsync(context.Background())
 
 		select {
 		case results, ok := <-resultChan:
@@ -439,7 +439,7 @@ func TestVectorQueryBuilder(t *testing.T) {
 		results, err := table.VectorQuery("embedding", queryVec).
 			Limit(3).
 			DistanceType(contracts.DistanceTypeL2).
-			Execute()
+			Execute(context.Background())
 		require.NoError(t, err)
 		assert.Len(t, results, 3)
 	})
@@ -448,7 +448,7 @@ func TestVectorQueryBuilder(t *testing.T) {
 		results, err := table.VectorQuery("embedding", queryVec).
 			Limit(3).
 			DistanceType(contracts.DistanceTypeCosine).
-			Execute()
+			Execute(context.Background())
 		require.NoError(t, err)
 		assert.Len(t, results, 3)
 	})
@@ -457,13 +457,13 @@ func TestVectorQueryBuilder(t *testing.T) {
 		results, err := table.VectorQuery("embedding", queryVec).
 			Limit(3).
 			DistanceType(contracts.DistanceTypeDot).
-			Execute()
+			Execute(context.Background())
 		require.NoError(t, err)
 		assert.Len(t, results, 3)
 	})
 
 	t.Run("Default distance type works without explicit set", func(t *testing.T) {
-		results, err := table.VectorQuery("embedding", queryVec).Limit(3).Execute()
+		results, err := table.VectorQuery("embedding", queryVec).Limit(3).Execute(context.Background())
 		require.NoError(t, err)
 		assert.Len(t, results, 3)
 	})
@@ -473,7 +473,7 @@ func TestVectorQueryBuilder(t *testing.T) {
 		closedTable.Close()
 		defer closedCleanup()
 
-		resultChan, errChan := closedTable.VectorQuery("embedding", queryVec).Limit(3).ExecuteAsync()
+		resultChan, errChan := closedTable.VectorQuery("embedding", queryVec).Limit(3).ExecuteAsync(context.Background())
 
 		select {
 		case results, ok := <-resultChan:
