@@ -156,6 +156,11 @@ pub extern "C" fn simple_lancedb_table_select_query(
                 if let Some(limit) = query_config.get("limit").and_then(|v| v.as_u64()) {
                     fts_query = fts_query.limit(limit as usize);
                 }
+                if query_config.get("offset").and_then(|v| v.as_u64()).is_some() {
+                    return Err(lancedb::Error::InvalidInput {
+                        message: "FTS queries do not support offset pagination".to_string(),
+                    });
+                }
 
                 return fts_query.execute().await;
             }
@@ -415,6 +420,11 @@ pub extern "C" fn simple_lancedb_table_select_query_ipc(
                 }
                 if let Some(limit) = query_config.get("limit").and_then(|v| v.as_u64()) {
                     fts_query = fts_query.limit(limit as usize);
+                }
+                if query_config.get("offset").and_then(|v| v.as_u64()).is_some() {
+                    return Err(lancedb::Error::InvalidInput {
+                        message: "FTS queries do not support offset pagination".to_string(),
+                    });
                 }
 
                 return fts_query.execute().await;

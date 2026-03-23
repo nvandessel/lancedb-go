@@ -19,7 +19,7 @@ import (
 	"github.com/lancedb/lancedb-go/pkg/lancedb"
 )
 
-func setupFTSTestTable(t *testing.T) (contracts.ITable, func()) {
+func setupFTSTestTable(t *testing.T) contracts.ITable {
 	t.Helper()
 
 	tempDir, err := os.MkdirTemp("", "lancedb_test_fts_")
@@ -73,22 +73,22 @@ func setupFTSTestTable(t *testing.T) (contracts.ITable, func()) {
 	err = table.Add(context.Background(), record, nil)
 	require.NoError(t, err)
 
+	// Register cleanup before CreateIndex so resources are freed even if index creation fails
+	t.Cleanup(func() {
+		table.Close()
+		conn.Close()
+		os.RemoveAll(tempDir)
+	})
+
 	// Create FTS index on title column
 	err = table.CreateIndex(context.Background(), []string{"title"}, contracts.IndexTypeFts)
 	require.NoError(t, err)
 
-	cleanup := func() {
-		table.Close()
-		conn.Close()
-		os.RemoveAll(tempDir)
-	}
-
-	return table, cleanup
+	return table
 }
 
 func TestFullTextSearch(t *testing.T) {
-	table, cleanup := setupFTSTestTable(t)
-	defer cleanup()
+	table := setupFTSTestTable(t)
 
 	t.Run("FTS returns matching rows", func(t *testing.T) {
 		results, err := table.FullTextSearch(context.Background(), "title", "Go")
