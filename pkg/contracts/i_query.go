@@ -3,15 +3,19 @@
 
 package contracts
 
-import "context"
+import (
+	"context"
+
+	"github.com/apache/arrow/go/v17/arrow"
+)
 
 type IQueryBuilder interface {
 	Filter(condition string) IQueryBuilder
 	Limit(limit int) IQueryBuilder
 	Columns(columns []string) IQueryBuilder
 	Offset(offset int) IQueryBuilder
-	Execute(ctx context.Context) ([]map[string]interface{}, error)
-	ExecuteAsync(ctx context.Context) (<-chan []map[string]interface{}, <-chan error)
+	Execute(ctx context.Context) (arrow.Record, error)
+	ExecuteAsync(ctx context.Context) (<-chan arrow.Record, <-chan error)
 	ApplyOptions(options *QueryOptions) IQueryBuilder
 }
 
@@ -20,8 +24,8 @@ type IVectorQueryBuilder interface {
 	Limit(limit int) IVectorQueryBuilder
 	Columns(columns []string) IVectorQueryBuilder
 	DistanceType(dt DistanceType) IVectorQueryBuilder
-	Execute(ctx context.Context) ([]map[string]interface{}, error)
-	ExecuteAsync(ctx context.Context) (<-chan []map[string]interface{}, <-chan error)
+	Execute(ctx context.Context) (arrow.Record, error)
+	ExecuteAsync(ctx context.Context) (<-chan arrow.Record, <-chan error)
 	ApplyOptions(options *QueryOptions) IVectorQueryBuilder
 }
 

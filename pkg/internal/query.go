@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/apache/arrow/go/v17/arrow"
+
 	lancedb "github.com/lancedb/lancedb-go/pkg/contracts"
 )
 
@@ -57,10 +59,14 @@ func (q *QueryBuilder) Offset(offset int) lancedb.IQueryBuilder {
 }
 
 // Execute executes the query and returns results.
-// Delegates to Table.Select() which holds the mutex and checks closed state.
-func (q *QueryBuilder) Execute(ctx context.Context) ([]map[string]interface{}, error) {
+// Delegates to Table.SelectIPC() which holds the mutex and checks closed state.
+func (q *QueryBuilder) Execute(ctx context.Context) (arrow.Record, error) {
 	config := q.buildConfig()
-	return q.table.Select(ctx, config)
+	ipcBytes, err := q.table.SelectIPC(ctx, config)
+	if err != nil {
+		return nil, err
+	}
+	return ipcBytesToRecord(ipcBytes)
 }
 
 // executeAsync runs fn in a goroutine and routes its result or error to
@@ -69,8 +75,8 @@ func (q *QueryBuilder) Execute(ctx context.Context) ([]map[string]interface{}, e
 // two-value receive form. Callers should check the ok flag to
 // distinguish a real value (ok=true) from a closed-empty channel (ok=false)
 // that may appear when the scheduler picks the other channel first.
-func executeAsync(ctx context.Context, fn func(context.Context) ([]map[string]interface{}, error)) (<-chan []map[string]interface{}, <-chan error) {
-	resultChan := make(chan []map[string]interface{}, 1)
+func executeAsync(ctx context.Context, fn func(context.Context) (arrow.Record, error)) (<-chan arrow.Record, <-chan error) {
+	resultChan := make(chan arrow.Record, 1)
 	errorChan := make(chan error, 1)
 
 	// Short-circuit if context is already cancelled
@@ -85,11 +91,11 @@ func executeAsync(ctx context.Context, fn func(context.Context) ([]map[string]in
 		defer close(resultChan)
 		defer close(errorChan)
 
-		results, err := fn(ctx)
+		result, err := fn(ctx)
 		if err != nil {
 			errorChan <- err
 		} else {
-			resultChan <- results
+			resultChan <- result
 		}
 	}()
 
@@ -97,7 +103,7 @@ func executeAsync(ctx context.Context, fn func(context.Context) ([]map[string]in
 }
 
 // ExecuteAsync executes the query asynchronously
-func (q *QueryBuilder) ExecuteAsync(ctx context.Context) (<-chan []map[string]interface{}, <-chan error) {
+func (q *QueryBuilder) ExecuteAsync(ctx context.Context) (<-chan arrow.Record, <-chan error) {
 	return executeAsync(ctx, q.Execute)
 }
 
@@ -174,8 +180,8 @@ func (vq *VectorQueryBuilder) DistanceType(dt lancedb.DistanceType) lancedb.IVec
 }
 
 // Execute executes the vector search query and returns results.
-// Delegates to Table.Select() which holds the mutex and checks closed state.
-func (vq *VectorQueryBuilder) Execute(ctx context.Context) ([]map[string]interface{}, error) {
+// Delegates to Table.SelectIPC() which holds the mutex and checks closed state.
+func (vq *VectorQueryBuilder) Execute(ctx context.Context) (arrow.Record, error) {
 	if len(vq.vector) == 0 {
 		return nil, fmt.Errorf("vector search requires a non-empty query vector")
 	}
@@ -206,11 +212,16 @@ func (vq *VectorQueryBuilder) Execute(ctx context.Context) ([]map[string]interfa
 		dt := distanceTypeToString(*vq.distanceType)
 		config.VectorSearch.DistanceType = &dt
 	}
-	return vq.table.Select(ctx, config)
+
+	ipcBytes, err := vq.table.SelectIPC(ctx, config)
+	if err != nil {
+		return nil, err
+	}
+	return ipcBytesToRecord(ipcBytes)
 }
 
 // ExecuteAsync executes the vector query asynchronously
-func (vq *VectorQueryBuilder) ExecuteAsync(ctx context.Context) (<-chan []map[string]interface{}, <-chan error) {
+func (vq *VectorQueryBuilder) ExecuteAsync(ctx context.Context) (<-chan arrow.Record, <-chan error) {
 	return executeAsync(ctx, vq.Execute)
 }
 
