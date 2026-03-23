@@ -6,6 +6,7 @@
 use crate::conversion::convert_arrow_value_to_json;
 use crate::ffi::{from_c_str, SimpleResult};
 use crate::runtime::get_simple_runtime;
+use lancedb::index::scalar::FullTextSearchQuery;
 use lancedb::query::{ExecutableQuery, QueryBase};
 use std::ffi::CString;
 use std::os::raw::{c_char, c_void};
@@ -119,15 +120,38 @@ pub extern "C" fn simple_lancedb_table_select_query(
 
             // Apply full-text search
             if let Some(fts_search) = query_config.get("fts_search") {
-                if let (Some(_column), Some(_query_text)) = (
-                    fts_search.get("column").and_then(|v| v.as_str()),
-                    fts_search.get("query").and_then(|v| v.as_str()),
-                ) {
-                    // Note: FTS search is not currently available in this API version
-                    // This is a placeholder for future implementation
-                    return Err(lancedb::Error::InvalidInput {
-                        message: "Full-text search is not currently supported".to_string(),
-                    });
+                if let Some(query_text) = fts_search.get("query").and_then(|v| v.as_str()) {
+                    let mut fts_query_obj = FullTextSearchQuery::new(query_text.to_string());
+
+                    if let Some(column) = fts_search.get("column").and_then(|v| v.as_str()) {
+                        fts_query_obj = fts_query_obj
+                            .with_column(column.to_string())
+                            .map_err(|e| lancedb::Error::InvalidInput {
+                                message: format!("Invalid FTS column: {}", e),
+                            })?;
+                    }
+
+                    let mut fts_query = table.query().full_text_search(fts_query_obj);
+
+                    if let Some(columns) = query_config.get("columns").and_then(|v| v.as_array()) {
+                        let column_names: Vec<String> = columns
+                            .iter()
+                            .filter_map(|v| v.as_str())
+                            .map(|s| s.to_string())
+                            .collect();
+                        if !column_names.is_empty() {
+                            fts_query = fts_query
+                                .select(lancedb::query::Select::Columns(column_names));
+                        }
+                    }
+                    if let Some(filter) = query_config.get("where").and_then(|v| v.as_str()) {
+                        fts_query = fts_query.only_if(filter);
+                    }
+                    if let Some(limit) = query_config.get("limit").and_then(|v| v.as_u64()) {
+                        fts_query = fts_query.limit(limit as usize);
+                    }
+
+                    return fts_query.execute().await;
                 }
             }
 
@@ -351,15 +375,38 @@ pub extern "C" fn simple_lancedb_table_select_query_ipc(
 
             // Apply full-text search
             if let Some(fts_search) = query_config.get("fts_search") {
-                if let (Some(_column), Some(_query_text)) = (
-                    fts_search.get("column").and_then(|v| v.as_str()),
-                    fts_search.get("query").and_then(|v| v.as_str()),
-                ) {
-                    // Note: FTS search is not currently available in this API version
-                    // This is a placeholder for future implementation
-                    return Err(lancedb::Error::InvalidInput {
-                        message: "Full-text search is not currently supported".to_string(),
-                    });
+                if let Some(query_text) = fts_search.get("query").and_then(|v| v.as_str()) {
+                    let mut fts_query_obj = FullTextSearchQuery::new(query_text.to_string());
+
+                    if let Some(column) = fts_search.get("column").and_then(|v| v.as_str()) {
+                        fts_query_obj = fts_query_obj
+                            .with_column(column.to_string())
+                            .map_err(|e| lancedb::Error::InvalidInput {
+                                message: format!("Invalid FTS column: {}", e),
+                            })?;
+                    }
+
+                    let mut fts_query = table.query().full_text_search(fts_query_obj);
+
+                    if let Some(columns) = query_config.get("columns").and_then(|v| v.as_array()) {
+                        let column_names: Vec<String> = columns
+                            .iter()
+                            .filter_map(|v| v.as_str())
+                            .map(|s| s.to_string())
+                            .collect();
+                        if !column_names.is_empty() {
+                            fts_query = fts_query
+                                .select(lancedb::query::Select::Columns(column_names));
+                        }
+                    }
+                    if let Some(filter) = query_config.get("where").and_then(|v| v.as_str()) {
+                        fts_query = fts_query.only_if(filter);
+                    }
+                    if let Some(limit) = query_config.get("limit").and_then(|v| v.as_u64()) {
+                        fts_query = fts_query.limit(limit as usize);
+                    }
+
+                    return fts_query.execute().await;
                 }
             }
 
