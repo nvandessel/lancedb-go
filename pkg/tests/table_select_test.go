@@ -352,6 +352,10 @@ func TestSelectQueries(t *testing.T) {
 		if len(results) == 0 {
 			t.Fatal("❌Expected at least one FTS result for 'Alice', got none")
 		}
+		name, ok := results[0]["name"].(string)
+		if !ok || name != "Alice" {
+			t.Fatalf("❌Expected result name 'Alice', got %v", results[0]["name"])
+		}
 		t.Log("✅ FTS search completed successfully")
 	})
 
