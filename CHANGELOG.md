@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.3.0
+
+### Breaking Changes
+- `IQueryBuilder.Execute()` and `IVectorQueryBuilder.Execute()` now require `context.Context` parameter
+- `IQueryBuilder.Execute()` and `IVectorQueryBuilder.Execute()` return `arrow.Record` instead of `[]map[string]interface{}`
+- Same changes apply to `ExecuteAsync()` channel types
+- Callers must call `record.Release()` on returned Arrow Records to avoid memory leaks
+- `DistanceType` enum constants renamed: `DistanceL2` → `DistanceTypeL2`, `DistanceCosine` → `DistanceTypeCosine`, `DistanceDot` → `DistanceTypeDot`
+- `DistanceTypeUnspecified` (value 0) added as zero-value sentinel
+
+### Added
+- `DistanceType()` method on `IVectorQueryBuilder` for selecting distance metrics (L2, Cosine, Dot)
+- Full-text search queries now functional via `FullTextSearch()` and `FullTextSearchWithFilter()`
+- Arrow IPC return path for efficient columnar data transfer from Rust FFI
+- `SelectIPC()` method on Table for raw Arrow IPC byte access
+
+### Improved
+- SHA-pinned all GitHub Actions for supply chain security
+- `executeAsync` short-circuits on already-cancelled context
+- FTS queries reject non-zero offset with explicit error
+
 ## [Unreleased]
 
 ### Added
