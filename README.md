@@ -92,7 +92,8 @@ go build ./cmd/myapp
 import (
     "context"
     "log"
-    
+
+    "github.com/lancedb/lancedb-go/pkg/contracts"
     "github.com/lancedb/lancedb-go/pkg/lancedb"
     "github.com/apache/arrow/go/v17/arrow"
     "github.com/apache/arrow/go/v17/arrow/array"
@@ -175,7 +176,9 @@ Full-text search requires an FTS index on the target column:
 
 ```go
 // Create an FTS index first
-err = table.CreateIndex([]string{"text"}, contracts.IndexTypeFts)
+if err := table.CreateIndex(ctx, []string{"text"}, contracts.IndexTypeFts); err != nil {
+    log.Fatal(err)
+}
 
 // Search — returns []map[string]interface{}
 results, err := table.FullTextSearch(ctx, "text", "machine learning")
@@ -184,7 +187,10 @@ if err != nil {
 }
 
 // With a filter
-results, err = table.FullTextSearchWithFilter(ctx, "text", "machine learning", "score > 0.5")
+filtered, err := table.FullTextSearchWithFilter(ctx, "text", "machine learning", "score > 0.5")
+if err != nil {
+    log.Fatal(err)
+}
 ```
 
 ## Examples

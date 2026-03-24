@@ -466,6 +466,8 @@ func vectorQueryBuilderSearch(table ITable, ctx context.Context) error {
 		fmt.Printf("  🔍 Distance metric: %s\n", dt.name)
 
 		// Execute returns arrow.Record; Release() must be called to avoid memory leaks.
+		// Note: Release() is called explicitly here, not via defer, because defer
+		// is scoped to the function, not the loop iteration.
 		record, err := table.VectorQuery("vector", queryVector).
 			Limit(3).
 			DistanceType(dt.dt).
@@ -473,9 +475,9 @@ func vectorQueryBuilderSearch(table ITable, ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("VectorQuery with %s failed: %w", dt.name, err)
 		}
-		defer record.Release()
 
 		fmt.Printf("    📊 %d rows returned, %d columns\n", record.NumRows(), record.NumCols())
+		record.Release()
 	}
 
 	return nil
