@@ -110,7 +110,7 @@ func main() {
 
 	// Demonstrate VectorQuery builder with DistanceType and arrow.Record
 	fmt.Println("\n📋 Step 8: VectorQuery builder with DistanceType...")
-	if err := vectorQueryBuilderSearch(table, ctx); err != nil {
+	if err := vectorQueryBuilderSearch(ctx, table); err != nil {
 		log.Fatalf("Failed VectorQuery builder search: %v", err)
 	}
 
@@ -448,7 +448,7 @@ func advancedSearchConfigurations(table ITable) error {
 	return nil
 }
 
-func vectorQueryBuilderSearch(table ITable, ctx context.Context) error {
+func vectorQueryBuilderSearch(ctx context.Context, table ITable) error {
 	fmt.Println("  🔧 Using VectorQuery builder with DistanceType selection...")
 
 	queryVector := generateEmbedding("Technology Innovation", "artificial intelligence", "technology")

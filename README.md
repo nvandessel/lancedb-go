@@ -185,12 +185,14 @@ results, err := table.FullTextSearch(ctx, "text", "machine learning")
 if err != nil {
     log.Fatal(err)
 }
+fmt.Println("Found", len(results), "results")
 
 // With a filter
 filtered, err := table.FullTextSearchWithFilter(ctx, "text", "machine learning", "score > 0.5")
 if err != nil {
     log.Fatal(err)
 }
+fmt.Println("Found", len(filtered), "filtered results")
 ```
 
 ## Examples
