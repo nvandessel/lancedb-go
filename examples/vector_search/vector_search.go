@@ -17,8 +17,6 @@ package main
 import (
 	"context"
 	"fmt"
-	. "github.com/lancedb/lancedb-go/pkg/contracts"
-	"github.com/lancedb/lancedb-go/pkg/lancedb"
 	"log"
 	"math"
 	"math/rand"
@@ -28,6 +26,8 @@ import (
 	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/apache/arrow/go/v17/arrow/array"
 	"github.com/apache/arrow/go/v17/arrow/memory"
+	. "github.com/lancedb/lancedb-go/pkg/contracts"
+	"github.com/lancedb/lancedb-go/pkg/lancedb"
 )
 
 const (
@@ -108,8 +108,14 @@ func main() {
 		log.Fatalf("Failed advanced search configurations: %v", err)
 	}
 
+	// Demonstrate VectorQuery builder with DistanceType and arrow.Record
+	fmt.Println("\n📋 Step 8: VectorQuery builder with DistanceType...")
+	if err := vectorQueryBuilderSearch(ctx, table); err != nil {
+		log.Fatalf("Failed VectorQuery builder search: %v", err)
+	}
+
 	// Performance benchmarks
-	fmt.Println("\n📋 Step 8: Performance benchmarks...")
+	fmt.Println("\n📋 Step 9: Performance benchmarks...")
 	if err := performanceBenchmarks(table); err != nil {
 		log.Fatalf("Failed performance benchmarks: %v", err)
 	}
@@ -437,6 +443,41 @@ func advancedSearchConfigurations(table ITable) error {
 	for i, result := range results {
 		fmt.Printf("    %d. ID: %v, Title: %v, Category: %v, Distance: %v\n",
 			i+1, result["id"], result["title"], result["category"], result["_distance"])
+	}
+
+	return nil
+}
+
+func vectorQueryBuilderSearch(ctx context.Context, table ITable) error {
+	fmt.Println("  🔧 Using VectorQuery builder with DistanceType selection...")
+
+	queryVector := generateEmbedding("Technology Innovation", "artificial intelligence", "technology")
+
+	distanceTypes := []struct {
+		name string
+		dt   DistanceType
+	}{
+		{"L2 (Euclidean)", DistanceTypeL2},
+		{"Cosine", DistanceTypeCosine},
+		{"Dot product", DistanceTypeDot},
+	}
+
+	for _, dt := range distanceTypes {
+		fmt.Printf("  🔍 Distance metric: %s\n", dt.name)
+
+		// Execute returns arrow.Record; Release() must be called to avoid memory leaks.
+		// Note: Release() is called explicitly here, not via defer, because defer
+		// is scoped to the function, not the loop iteration.
+		record, err := table.VectorQuery("vector", queryVector).
+			Limit(3).
+			DistanceType(dt.dt).
+			Execute(ctx)
+		if err != nil {
+			return fmt.Errorf("VectorQuery with %s failed: %w", dt.name, err)
+		}
+
+		fmt.Printf("    📊 %d rows returned, %d columns\n", record.NumRows(), record.NumCols())
+		record.Release()
 	}
 
 	return nil

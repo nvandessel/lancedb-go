@@ -92,7 +92,8 @@ go build ./cmd/myapp
 import (
     "context"
     "log"
-    
+
+    "github.com/lancedb/lancedb-go/pkg/contracts"
     "github.com/lancedb/lancedb-go/pkg/lancedb"
     "github.com/apache/arrow/go/v17/arrow"
     "github.com/apache/arrow/go/v17/arrow/array"
@@ -129,13 +130,69 @@ defer table.Close()
 pool := memory.NewGoAllocator()
 // ... prepare your data arrays using Arrow builders ...
 
-// Perform vector search
+// Perform vector search (convenience method — returns []map[string]interface{})
 queryVector := []float32{0.1, 0.3, /* ... 128 dimensions */}
 results, err := table.VectorSearch(ctx, "vector", queryVector, 20)
 if err != nil {
     log.Fatal(err)
 }
 fmt.Println(results)
+
+// Fluent VectorQuery builder — Execute returns arrow.Record
+// record.Release() must be called to avoid memory leaks
+record, err := table.VectorQuery("vector", queryVector).
+    Limit(10).
+    DistanceType(contracts.DistanceTypeCosine).
+    Execute(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+defer record.Release()
+fmt.Printf("Columns: %v, Rows: %d\n", record.Schema().Fields(), record.NumRows())
+```
+
+### Distance Metrics
+
+Select the distance metric used for vector similarity search:
+
+```go
+import "github.com/lancedb/lancedb-go/pkg/contracts"
+
+record, err := table.VectorQuery("embedding", queryVector).
+    Limit(10).
+    DistanceType(contracts.DistanceTypeL2).      // Euclidean — default
+    // DistanceType(contracts.DistanceTypeCosine) // Cosine similarity
+    // DistanceType(contracts.DistanceTypeDot)    // Dot product
+    Execute(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+defer record.Release()
+```
+
+### Full-Text Search
+
+Full-text search requires an FTS index on the target column:
+
+```go
+// Create an FTS index first
+if err := table.CreateIndex(ctx, []string{"text"}, contracts.IndexTypeFts); err != nil {
+    log.Fatal(err)
+}
+
+// Search — returns []map[string]interface{}
+results, err := table.FullTextSearch(ctx, "text", "machine learning")
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Found", len(results), "results")
+
+// With a filter
+filtered, err := table.FullTextSearchWithFilter(ctx, "text", "machine learning", "score > 0.5")
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Found", len(filtered), "filtered results")
 ```
 
 ## Examples
