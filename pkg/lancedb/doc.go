@@ -48,16 +48,32 @@ Connect to a database and perform basic operations:
 
 # Vector Search
 
-Perform similarity search on vector embeddings:
+Perform similarity search using the fluent VectorQuery builder. Execute returns an
+arrow.Record; callers must call record.Release() to avoid memory leaks. ITable
+convenience methods (VectorSearch, VectorSearchWithFilter, etc.) still return
+[]map[string]interface{} and handle Arrow memory internally.
 
+	ctx := context.Background()
 	queryVector := []float32{0.1, 0.2, 0.3}
-	results, err := table.VectorSearch(context.Background(),"embedding", queryVector, 10)
+
+	// Fluent builder — Execute returns arrow.Record
+	record, err := table.VectorQuery("embedding", queryVector).
+		Limit(10).
+		DistanceType(contracts.DistanceTypeCosine).
+		Execute(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer record.Release()
+
+	// Convenience method — returns []map[string]interface{}
+	results, err := table.VectorSearch(ctx, "embedding", queryVector, 10)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Vector search with filtering
-	filteredResults, err := table.VectorSearchWithFilter(context.Background(),"embedding", queryVector, 5, "text IS NOT NULL")
+	// Vector search with filtering (convenience method)
+	filteredResults, err := table.VectorSearchWithFilter(ctx, "embedding", queryVector, 5, "text IS NOT NULL")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -130,20 +146,29 @@ Add records to tables using Apache Arrow records:
 
 Various query operations available:
 
+	ctx := context.Background()
+
 	// Basic select with limit
-	results, err := table.SelectWithLimit(context.Background(),100, 0)
+	results, err := table.SelectWithLimit(ctx, 100, 0)
 
 	// Select with filter
-	results, err := table.SelectWithFilter(context.Background(),"score > 0.8")
+	results, err := table.SelectWithFilter(ctx, "score > 0.8")
 
 	// Select specific columns
-	results, err := table.SelectWithColumns(context.Background(),[]string{"id", "text", "score"})
+	results, err := table.SelectWithColumns(ctx, []string{"id", "text", "score"})
 
-	// Full-text search
-	results, err := table.FullTextSearch(context.Background(),"text", "search query")
+	// Full-text search (now functional; requires an FTS index on the column)
+	results, err := table.FullTextSearch(ctx, "text", "search query")
 
 	// Full-text search with filter
-	results, err := table.FullTextSearchWithFilter(context.Background(),"text", "search query", "score > 0.5")
+	results, err := table.FullTextSearchWithFilter(ctx, "text", "search query", "score > 0.5")
+
+	// QueryBuilder — Execute returns arrow.Record (must call record.Release())
+	record, err := table.Query().Limit(50).Execute(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer record.Release()
 
 # Index Management
 
@@ -223,7 +248,8 @@ and should not be shared between goroutines.
 
 The SDK handles memory management automatically. Make sure to:
 • Call Close() on connections and tables when done
-• Release Arrow records when appropriate to free memory
+• Call record.Release() on every arrow.Record returned by Execute() or received from ExecuteAsync() channels to avoid memory leaks
+• ITable convenience methods (VectorSearch, Select, FullTextSearch, etc.) manage Arrow memory internally and return plain Go maps
 
 For more detailed examples and advanced usage, see the examples directory
 and the full documentation at https://contracts.github.io/lancedb/
