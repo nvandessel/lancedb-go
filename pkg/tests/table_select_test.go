@@ -331,7 +331,13 @@ func TestSelectQueries(t *testing.T) {
 		t.Log("✅ Complex query configuration works correctly")
 	})
 
-	t.Run("Full-Text Search (Should Return Error)", func(t *testing.T) {
+	t.Run("Full-Text Search", func(t *testing.T) {
+		// FTS requires an index on the search column
+		err := table.CreateIndex(context.Background(), []string{"name"}, contracts.IndexTypeFts)
+		if err != nil {
+			t.Fatalf("❌Failed to create FTS index: %v", err)
+		}
+
 		config := contracts.QueryConfig{
 			FTSSearch: &contracts.FTSSearch{
 				Column: "name",
@@ -339,13 +345,18 @@ func TestSelectQueries(t *testing.T) {
 			},
 		}
 
-		_, err := table.Select(context.Background(), config)
-		if err == nil {
-			t.Fatal("❌Expected error for FTS search, but got none")
-		} else if !contains(err.Error(), "Full-text search is not currently supported") {
-			t.Fatalf("❌Expected FTS not supported error, got: %v", err)
+		results, err := table.Select(context.Background(), config)
+		if err != nil {
+			t.Fatalf("❌Unexpected error for FTS search: %v", err)
 		}
-		t.Log("✅ FTS search correctly returns not supported error")
+		if len(results) == 0 {
+			t.Fatal("❌Expected at least one FTS result for 'Alice', got none")
+		}
+		name, ok := results[0]["name"].(string)
+		if !ok || name != "Alice" {
+			t.Fatalf("❌Expected result name 'Alice', got %v", results[0]["name"])
+		}
+		t.Log("✅ FTS search completed successfully")
 	})
 
 	t.Run("Error Handling - Closed Table", func(t *testing.T) {
